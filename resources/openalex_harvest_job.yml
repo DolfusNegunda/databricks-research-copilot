@@ -1,0 +1,26 @@
+# Runs harvester/snowball.py against the OpenAlex API and lands one JSON
+# Lines file per seed topic in a UC Volume, which pipelines/openalex_pipeline.py
+# reads as its bronze source.
+#
+# Deliberately on-demand, not scheduled: unlike the weather-rag sibling's
+# 15-minute alert resync, a citation corpus does not go stale on that
+# timescale. Re-run by hand (or trigger manually in the Jobs UI) when you
+# want to refresh or extend the corpus -- e.g. after adding a seed topic.
+
+resources:
+  jobs:
+    openalex_snowball_harvest:
+      name: openalex-snowball-harvest
+      tasks:
+        - task_key: harvest
+          spark_python_task:
+            python_file: ../harvester/snowball.py
+            parameters:
+              - "--out-dir"
+              - "/Volumes/main/research_copilot/raw/harvest"
+              - "--per-topic"
+              - "200"
+          new_cluster:
+            spark_version: 15.4.x-scala2.12
+            node_type_id: Standard_DS3_v2
+            num_workers: 0  # single-node: this task is API calls, not distributed compute

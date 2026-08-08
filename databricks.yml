@@ -1,0 +1,30 @@
+# Databricks Asset Bundle for this capstone's data side: the snowball
+# harvester job and (once built) the Lakeflow Declarative Pipeline.
+#
+# This bundle does not deploy the two Databricks Apps (app/, mcp_server/) --
+# those follow the repo's Git-folder -> Apps -> resource pattern and are
+# deployed separately, same as every sibling project. It only defines the
+# Jobs/Pipelines in resources/*.yml.
+
+bundle:
+  name: research-copilot
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      # Fill in with your own workspace URL before deploying, e.g.
+      # https://your-workspace.cloud.databricks.com -- never commit a real
+      # workspace host here.
+      host: https://REPLACE_WITH_YOUR_WORKSPACE_HOST.cloud.databricks.com
+
+  prod:
+    mode: production
+    workspace:
+      # Fill in with your own workspace URL before deploying -- never commit
+      # a real workspace host here.
+      host: https://REPLACE_WITH_YOUR_WORKSPACE_HOST.cloud.databricks.com

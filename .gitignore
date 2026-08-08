@@ -1,0 +1,35 @@
+# Local environment / never commit real values
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Model weights cached locally when running the notebook/app off-workspace
+.cache/
+*.pt
+*.bin
+
+# Harvested/landed data -- large, regenerable from harvester/snowball.py and
+# the pipeline; never the source of truth, never committed.
+harvest/
+/data/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Databricks
+.databricks/
