@@ -304,7 +304,11 @@ def run_write_returning(sql: str, params: tuple | dict | None = None) -> list[di
 
 def _render_schema_sql(embedding_dim: int) -> str:
     text = (_SQL_DIR / "01_schema.sql").read_text(encoding="utf-8")
-    return text.replace("{{EMBEDDING_DIM}}", str(int(embedding_dim)))
+    return (
+        text.replace("__SCHEMA_NAME__", LAKEBASE_SCHEMA)
+        .replace("__SCHEMA__", f'"{LAKEBASE_SCHEMA}"')
+        .replace("{{EMBEDDING_DIM}}", str(int(embedding_dim)))
+    )
 
 
 def ensure_research_schema(embedding_dim: int = 384) -> dict:

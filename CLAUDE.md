@@ -51,10 +51,11 @@ still used — for the *other* 20 entity types (`authors`, `institutions`,
 
 ```bash
 # offline verification -- no network, no Databricks, no live Lakebase
-python scripts/check_api.py    # 50 checks: abstract reconstruction, reading-path
+python scripts/check_api.py    # 58 checks: abstract reconstruction, reading-path
                                 # ordering, harvester's pure helpers, chunking/vector
                                 # formatting, frontend conventions (no innerHTML, id
-                                # cross-check), run_query() write-safety (ast-parsed)
+                                # cross-check), run_query() write-safety (ast-parsed),
+                                # _render_schema_sql() placeholder substitution (x4 copies)
 python scripts/check_sql.py    # 4 checks: every sql/*.sql statement via pglast
 
 # the harvester (needs network; hits the live OpenAlex API)
@@ -155,7 +156,23 @@ genuinely offline-safe to import despite needing those packages installed.
   proven shape exactly (pooled `ThreadedConnectionPool`, three-path auth,
   `SET search_path` per checkout never libpq `options`, `pg_namespace` guard
   before `CREATE SCHEMA`). `ensure_research_schema(embedding_dim=384)`
-  substitutes `{{EMBEDDING_DIM}}` into `sql/01_schema.sql`.
+  substitutes `__SCHEMA__`/`__SCHEMA_NAME__`/`{{EMBEDDING_DIM}}` into
+  `sql/01_schema.sql` before executing it. **This was broken in all four
+  copies until a live run caught it**: `_render_schema_sql()` originally
+  only substituted `{{EMBEDDING_DIM}}` — `__SCHEMA__`/`__SCHEMA_NAME__` were
+  never wired up outside `scripts/check_sql.py`'s own, separate, hardcoded
+  substitution used purely for offline grammar-checking. Every live
+  `CREATE TABLE IF NOT EXISTS __SCHEMA__.papers` therefore actually ran with
+  `__SCHEMA__` completely unsubstituted -- and since Postgres folds
+  unquoted identifiers to lowercase, `__SCHEMA__` is a syntactically valid
+  schema name on its own, so it created a real, working table named
+  literally `"__schema__".papers`, no error, nothing to notice, until
+  `sync_to_lakebase.py`'s bare `INSERT INTO papers` (relying on
+  `search_path`, which never included that schema) failed with
+  `relation "papers" does not exist`. `scripts/check_api.py` now imports
+  all four copies and asserts the rendered SQL text is placeholder-free and
+  actually references `LAKEBASE_SCHEMA` — this offline check would have
+  caught it without ever touching a live database.
 - **`embedder.py`** — chunking + embedding, same shape as the weather-rag
   sibling's. Only module that imports `sentence_transformers`, only lazily
   inside `get_model()`.

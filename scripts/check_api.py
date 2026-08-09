@@ -344,6 +344,44 @@ for _label in ("mcp_server/tools.py", "app/app.py"):
         str(_offenders),
     )
 
+# ---------------------------------------------------------------------------
+# lakebase.py's _render_schema_sql(): every placeholder in sql/01_schema.sql
+# (__SCHEMA__, __SCHEMA_NAME__, {{EMBEDDING_DIM}}) must actually be
+# substituted before the rendered text reaches Postgres. Caught live, the
+# hard way: this was never wired up for __SCHEMA__/__SCHEMA_NAME__ in any of
+# the four copies, only {{EMBEDDING_DIM}} -- every CREATE TABLE IF NOT
+# EXISTS __SCHEMA__.papers silently created a real, valid, working table
+# named literally "__schema__".papers (Postgres folds the unquoted
+# identifier to lowercase; it's a syntactically legal schema name, which is
+# exactly why this never raised an error to notice). Offline because
+# _render_schema_sql() is pure text substitution -- no connection needed to
+# check its output, just import each copy and read the rendered string.
+# ---------------------------------------------------------------------------
+
+import importlib.util  # noqa: E402
+
+
+def _rendered_schema_sql(copy_path: Path):
+    spec = importlib.util.spec_from_file_location(f"_check_lakebase_{copy_path.parent.name}", copy_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module._render_schema_sql(384), module.LAKEBASE_SCHEMA
+
+
+for _copy in ("lakebase.py", "app/lakebase.py", "mcp_server/lakebase.py", "pipelines/lakebase.py"):
+    _rendered, _schema = _rendered_schema_sql(_REPO_ROOT / _copy)
+    _leaked = [p for p in ("__SCHEMA_NAME__", "__SCHEMA__", "{{EMBEDDING_DIM}}") if p in _rendered]
+    check(
+        f"{_copy}: _render_schema_sql() leaves no unsubstituted placeholder",
+        not _leaked,
+        f"still present: {_leaked}",
+    )
+    check(
+        f"{_copy}: _render_schema_sql() actually references its real schema ({_schema!r}), not a placeholder",
+        f'"{_schema}".papers' in _rendered,
+        _rendered[:300],
+    )
+
 print(f"\n{passed} passed, {len(failed)} failed")
 if failed:
     for name in failed:

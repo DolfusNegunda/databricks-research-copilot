@@ -145,7 +145,7 @@ persist; `save_reading_plan` computes the same thing and writes
 ## Verification
 
 ```bash
-python scripts/check_api.py                 # offline: 50 checks
+python scripts/check_api.py                 # offline: 58 checks
 python scripts/check_sql.py                  # offline: 4 checks, via pglast
 python scripts/check_connection.py           # live: pgvector, schema, dimension via format_type()
 python scripts/check_connection.py --write   # live: + a self-cleaning cosine round trip
@@ -157,11 +157,14 @@ reading-path correctness (clean DAGs, cycles, disconnected sets, deterministic
 tie-breaks), the harvester's pure helpers, chunking/vector-literal formatting,
 two frontend conventions checked by scanning `app/`'s source text rather than
 executing it (`app.js` never uses `innerHTML`, and every `getElementById`
-call has a matching element in `index.html`), and one Lakebase write-safety
+call has a matching element in `index.html`), one Lakebase write-safety
 convention checked the same way: parsing `mcp_server/tools.py` and
 `app/app.py` with `ast` to confirm no SQL containing `INSERT`/`UPDATE`/
 `DELETE` is ever passed to `run_query()`, which never commits (see
-`lakebase.py`).
+`lakebase.py`), and — added after a live run caught it missing — that all
+four copies of `lakebase.py`'s `_render_schema_sql()` actually substitute
+every `sql/01_schema.sql` placeholder (`__SCHEMA__`, `__SCHEMA_NAME__`,
+`{{EMBEDDING_DIM}}`) rather than shipping them straight to Postgres.
 
 ## What's verified vs. what isn't
 
