@@ -41,7 +41,7 @@ from psycopg2.extras import RealDictCursor
 
 log = logging.getLogger("research_copilot.lakebase")
 
-_SQL_DIR = Path(__file__).resolve().parent.parent / "sql"
+_SQL_DIR = Path(__file__).resolve().parent / "sql"
 
 _SCOPE = os.environ.get("LAKEBASE_SECRET_SCOPE", "database")
 _KEY = os.environ.get("LAKEBASE_SECRET_KEY", "lakebase-url")

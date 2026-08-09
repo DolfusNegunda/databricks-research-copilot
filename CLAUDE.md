@@ -56,7 +56,7 @@ python scripts/check_api.py    # 58 checks: abstract reconstruction, reading-pat
                                 # formatting, frontend conventions (no innerHTML, id
                                 # cross-check), run_query() write-safety (ast-parsed),
                                 # _render_schema_sql() placeholder substitution (x4 copies)
-python scripts/check_sql.py    # 4 checks: every sql/*.sql statement via pglast
+python scripts/check_sql.py    # 12 checks: sql/, app/sql/, mcp_server/sql/ via pglast
 
 # the harvester (needs network; hits the live OpenAlex API)
 python harvester/snowball.py --out-dir ./harvest --per-topic 200
@@ -266,6 +266,23 @@ correctness one.
   in sync by hand with the root originals when fixing a bug in one; nothing
   enforces this automatically, same tradeoff the sibling projects accepted
   for their own copied-then-diverged CSS.
+- **`sql/01_schema.sql` is duplicated into `app/sql/` and `mcp_server/sql/`
+  too, for the same deployment-boundary reason as `lakebase.py`/`embedder.py`
+  above — found live, the hard way.** `app/lakebase.py`'s and
+  `mcp_server/lakebase.py`'s `_SQL_DIR` originally pointed at the repo-root
+  `sql/` (two `.parent` calls up from each file), which works for a local
+  checkout but not for either deployed App: Databricks Apps deployment only
+  uploads files from *within* the app's own folder, never sibling
+  directories, so the repo-root `sql/` simply isn't there. Every deploy of
+  both apps hit `FileNotFoundError` on `ensure_research_schema()`'s own
+  module-load bootstrap call, silently caught by its own error handling
+  (by design, so it can't crash the app) — meaning neither app has ever
+  actually applied its own schema; both have only ever worked because the
+  Job-based path (which *does* get the full repo tree) already had. Fixed
+  by copying the file in and changing `_SQL_DIR` to a single `.parent`.
+  `scripts/check_sql.py` now validates all three copies (12 checks, not 4)
+  so a schema edit applied only to the root file fails offline instead of
+  silently drifting.
 - **8 seed topics, not 1.** Multi-topic on purpose: richness of data was an
   explicit goal, and it means the demo app supports several distinct,
   realistic learning goals instead of one. See `SEED_TOPICS` in

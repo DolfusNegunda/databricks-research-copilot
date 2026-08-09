@@ -146,7 +146,7 @@ persist; `save_reading_plan` computes the same thing and writes
 
 ```bash
 python scripts/check_api.py                 # offline: 58 checks
-python scripts/check_sql.py                  # offline: 4 checks, via pglast
+python scripts/check_sql.py                  # offline: 12 checks (sql/, app/sql/, mcp_server/sql/), via pglast
 python scripts/check_connection.py           # live: pgvector, schema, dimension via format_type()
 python scripts/check_connection.py --write   # live: + a self-cleaning cosine round trip
 ```
