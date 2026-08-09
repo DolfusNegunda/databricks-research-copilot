@@ -93,17 +93,34 @@ python scripts/check_sql.py   # offline, needs pglast: pip install pglast
 
 To actually run the pipeline and populate Lakebase, in a Databricks workspace:
 
-1. **Harvest**: run `harvester/snowball.py` and `harvester/land_topics.py`
-   (deploy `resources/openalex_harvest_job.yml` via `databricks bundle deploy`,
-   or run by hand against a Volume path).
-2. **Pipeline**: deploy and run `resources/openalex_pipeline.yml` — produces
-   the bronze/silver/gold Delta tables.
-3. **Sync + embed**: deploy and run `resources/openalex_sync_job.yml` — writes
-   the curated subset into Lakebase, then embeds it.
-4. **Deploy the two Apps**: `app/` and `mcp_server/`, each via the workspace's
+0. **Prerequisites, once**: a Unity Catalog Volume for the harvester to land
+   into (nothing creates this automatically):
+   ```sql
+   CREATE SCHEMA IF NOT EXISTS main.research_copilot;
+   CREATE VOLUME IF NOT EXISTS main.research_copilot.raw;
+   ```
+   Also confirm the shared Lakebase secret already exists (`database` /
+   `lakebase-url`) — it does if you've deployed any sibling bootcamp project
+   in this workspace already; this project has no `setup_secrets.py` of its
+   own and deliberately reuses that one (see the workspace root `CLAUDE.md`).
+1. **Deploy the bundle**: `databricks bundle deploy` from the repo root —
+   creates the pipeline (`resources/openalex_pipeline.yml`) and both jobs
+   (`resources/openalex_harvest_job.yml`, `resources/openalex_sync_job.yml`).
+   Fill in your workspace host in `databricks.yml` first.
+2. **Harvest**: run the `openalex-snowball-harvest` job (Jobs UI or
+   `databricks bundle run openalex_snowball_harvest`) — its two tasks land
+   the citation-snowball corpus and the topics taxonomy into the Volume.
+3. **Pipeline**: run the `openalex-research-copilot` pipeline — produces the
+   bronze/silver/gold Delta tables. Check the pipeline's event log / DQ
+   metrics for expectation drop counts after the first run.
+4. **Sync + embed**: run the `openalex-sync-to-lakebase` job — writes the
+   curated subset into Lakebase, then embeds it.
+5. **Deploy the two Apps**: `app/` and `mcp_server/`, each via the workspace's
    Git-folder → Pull → Deploy sequence (see the workspace root `CLAUDE.md`) —
    independently; deploying one does not deploy the other.
-5. **Register the agent**: see `docs/agent_bricks_setup.md`.
+6. **Register the agent**: see `docs/agent_bricks_setup.md` — then set
+   `AGENT_SERVING_ENDPOINT` in `app/app.yaml` and redeploy `app/` (step 5
+   again) to wire the chat panel to it.
 
 ## MCP tools (`mcp_server/tools.py`)
 

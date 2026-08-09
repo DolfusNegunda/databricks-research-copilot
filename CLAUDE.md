@@ -207,7 +207,11 @@ correctness one.
   explicit goal, and it means the demo app supports several distinct,
   realistic learning goals instead of one. See `SEED_TOPICS` in
   `harvester/snowball.py` for the list and why each was picked.
-- **`harvester/` has no `requirements.txt`.** It only uses the stdlib
-  (`urllib`, `json`, `argparse`) — deliberately, so it has nothing to install
-  before it can run as either a plain script or the Databricks job in
-  `resources/openalex_harvest_job.yml`.
+- **`harvester/` has no `requirements.txt`.** `snowball.py` is pure stdlib
+  (`urllib`, `json`, `argparse`). `land_topics.py` also imports `pyarrow` to
+  read the Parquet snapshot's footer/row-groups directly over HTTPS -- not
+  stdlib, but it ships with the Databricks Runtime already (Spark uses Arrow
+  internally), so neither task in `resources/openalex_harvest_job.yml` needs
+  a `libraries:` block. Only true for the Databricks job; running
+  `land_topics.py` by hand outside a Databricks cluster needs
+  `pip install pyarrow` first.
