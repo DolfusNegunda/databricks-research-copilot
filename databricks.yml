@@ -1,5 +1,5 @@
 # Databricks Asset Bundle for this capstone's data side: the snowball
-# harvester job and (once built) the Lakeflow Declarative Pipeline.
+# harvester job, the Lakeflow Declarative Pipeline, and the sync+embed job.
 #
 # This bundle does not deploy the two Databricks Apps (app/, mcp_server/) --
 # those follow the repo's Git-folder -> Apps -> resource pattern and are

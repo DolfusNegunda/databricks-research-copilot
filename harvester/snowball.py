@@ -38,7 +38,7 @@ import urllib.request
 from pathlib import Path
 
 API_ROOT = "https://api.openalex.org/works"
-MAILTO = os.environ.get("OPENALEX_MAILTO", "dnegunda@bscglobal.com")
+MAILTO = os.environ.get("OPENALEX_MAILTO", "you@example.com")
 USER_AGENT = f"databricks-research-copilot/1.0 (mailto:{MAILTO})"
 
 # Coherent technical subfields, sized by measured meta.count before picking
