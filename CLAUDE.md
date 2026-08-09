@@ -112,7 +112,8 @@ genuinely offline-safe to import despite needing those packages installed.
 - **`pipelines/openalex_pipeline.py`** — bronze (`bronze_works_raw` via Auto
   Loader over the harvester's JSON, `bronze_dim_topics` via Auto Loader over
   the landed snapshot entity) → silver (`silver_works` with the schema
-  contract + `dp.expect_all_or_drop`/`dp.expect`/`dp.expect_or_fail` gates,
+  contract + `dp.expect_all_or_drop`/`dp.expect` gates plus
+  `dropDuplicates(["work_id"])` -- NOT `dp.expect_or_fail`, see below --
   `silver_authors`/`silver_paper_authors`/`silver_citation_edges` exploded
   from it, `silver_topics_dim`) → gold (`gold_citation_graph` restricted to
   the induced subgraph, `gold_paper_metrics` with `foundational_score`,
@@ -132,6 +133,19 @@ genuinely offline-safe to import despite needing those packages installed.
   file there); defining it inline makes cloudpickle serialize it *by value*
   instead, sidestepping the question entirely. `check_api.py` tests the root
   copy, not this one — keep them in sync by hand.
+  **`silver_works` originally hard-failed on a duplicate `work_id` via
+  `dp.expect_or_fail("no_duplicate_work_ids", "count(*) OVER (PARTITION BY
+  work_id) = 1")` — wrong on two counts, caught on a live run, not in
+  review.** Window functions can't be evaluated inside a WHERE clause in
+  standard SQL, and `dp.expect*`'s row-level expectations apply their
+  predicate exactly that way, so this never could have passed. Even fixed
+  syntactically, hard-failing would have been the wrong response anyway:
+  the same paper legitimately gets pulled into more than one seed topic's
+  snowball, so a repeated `work_id` across topic files is expected data
+  (`harvester/snowball.py`'s own harvest summary reports a pre-dedup total
+  for exactly this reason), not a row to reject the whole pipeline over.
+  `dropDuplicates(["work_id"])` replaced it — same fix already used for
+  `silver_authors`.
 - **`resources/openalex_pipeline.yml`, `resources/openalex_harvest_job.yml`,
   `resources/openalex_sync_job.yml`** — the Asset Bundle definitions. The
   pipeline's `schema:` is a Unity Catalog schema for Delta tables; Lakebase's

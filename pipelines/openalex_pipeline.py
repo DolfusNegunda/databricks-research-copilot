@@ -181,7 +181,15 @@ _SILVER_WORKS_GATES = {
     comment=(
         "One row per work: work_id normalized to the bare id, abstract "
         "reconstructed from the inverted index, topic/OA fields flattened. "
-        "Explicit column list below is the schema contract -- not inferred."
+        "Explicit column list below is the schema contract -- not inferred. "
+        "dropDuplicates(work_id) handles cross-topic overlap -- the same "
+        "paper legitimately gets pulled into more than one seed topic's "
+        "snowball (harvester/snowball.py's own harvest summary reports the "
+        "pre-dedup total for exactly this reason), so a repeated work_id "
+        "here is expected data, not a bad row to hard-fail on. Whichever "
+        "duplicate survives keeps the same OpenAlex fields either way -- "
+        "only _seed_topic differs, and that column only ever holds one "
+        "value per paper regardless."
     ),
 )
 @dp.expect_all_or_drop(_SILVER_WORKS_GATES)
@@ -191,11 +199,11 @@ _SILVER_WORKS_GATES = {
 )  # warn, don't drop -- a work with zero recorded references is real OpenAlex
 # data (confirmed during corpus planning: ~42% of works have none), not
 # necessarily a bad row.
-@dp.expect_or_fail("no_duplicate_work_ids", "count(*) OVER (PARTITION BY work_id) = 1")
 def silver_works():
     raw = spark.read.table("bronze_works_raw")  # noqa: F821
     return (
         raw.withColumn("work_id", _short_id(F.col("id")))
+        .dropDuplicates(["work_id"])
         .withColumn(
             "referenced_works",
             F.transform(F.coalesce(F.col("referenced_works"), F.array()), lambda x: _short_id(x)),
