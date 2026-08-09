@@ -18,7 +18,7 @@ const state = {
 async function apiGet(path) {
   const res = await fetch(path);
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error || body.message || `${res.status} ${res.statusText}`);
+  if (!res.ok) throw new Error(body.message || body.error || `${res.status} ${res.statusText}`);
   return body;
 }
 
@@ -29,7 +29,7 @@ async function apiSend(method, path, payload) {
     body: payload === undefined ? undefined : JSON.stringify(payload),
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error || body.message || `${res.status} ${res.statusText}`);
+  if (!res.ok) throw new Error(body.message || body.error || `${res.status} ${res.statusText}`);
   return body;
 }
 
