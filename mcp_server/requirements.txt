@@ -1,0 +1,7 @@
+fastmcp
+fastapi
+uvicorn
+psycopg2-binary
+SQLAlchemy
+databricks-sdk
+sentence-transformers
