@@ -28,7 +28,8 @@ from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-MANIFEST_URL = "https://openalex.s3.amazonaws.com/data/parquet/topics/manifest"
+MANIFEST_URL = "https://openalex.s3.amazonaws.com/data/parquet/manifest.json"
+ENTITY = "topics"
 COLUMNS = ["id", "display_name", "domain", "field", "subfield", "description", "keywords"]
 
 
@@ -74,10 +75,19 @@ class _SeekableHttpFile(io.RawIOBase):
 
 
 def list_partition_files() -> list[str]:
+    """OpenAlex publishes one combined manifest for every parquet entity
+    (data/parquet/manifest.json: {entities: [{entity, files: [{url, meta}]}, ...]}),
+    not a separate per-entity manifest file -- confirmed by browsing the
+    actual bucket structure directly after a 404 against the older
+    per-entity path this originally targeted. `files` for the topics entity
+    is a handful of small updated_date partitions (~4,500 rows total, not
+    one big file), same as every other entity here.
+    """
     req = urllib.request.Request(MANIFEST_URL)
     with urllib.request.urlopen(req, timeout=60) as resp:
         manifest = json.load(resp)
-    return [entry["url"].replace("s3://openalex/", "https://openalex.s3.amazonaws.com/") for entry in manifest["entries"]]
+    entity = next(e for e in manifest["entities"] if e["entity"] == ENTITY)
+    return [f["url"].replace("s3://openalex/", "https://openalex.s3.amazonaws.com/") for f in entity["files"]]
 
 
 def read_partition(url: str) -> list[dict]:
