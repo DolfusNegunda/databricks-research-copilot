@@ -107,6 +107,14 @@ papers)** directly beside **"Rag papers" (3 papers)** — the collection
 created by clicking "+ New" in the browser weeks earlier — in the same
 sidebar, same account, same render path.
 
+A third vantage point on the same fact, independent of both the app and the
+agent: `lakebase_collections_table.png` opens Lakebase's own table browser —
+not the app, not the agent, no code from either — directly on
+`research.collections`, showing exactly these same two rows,
+`collection_id 1 "Rag papers"` and `collection_id 6 "Evidence Test"`. See
+`docs/run_evidence.md` for the pipeline/job side of the evidence, which this
+document doesn't cover.
+
 ## The app's own read side and a live bug fix, for completeness
 
 Two more screenshots, not agent-related but part of the same testing pass:
