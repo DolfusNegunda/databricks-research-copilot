@@ -2,56 +2,47 @@
 # Two sequential tasks rather than one script, mirroring the deliberate
 # sync/embed separation in pipelines/embed_papers.py: sync is a cheap batch
 # SQL write, embedding loads a real model and runs inference. Each task
-# declares only the libraries it actually needs -- sync never pulls in
+# declares only the dependencies it actually needs -- sync never pulls in
 # sentence-transformers/torch.
 #
 # Run manually after openalex_snowball_harvest + the declarative pipeline
 # have produced fresh gold tables; not scheduled, for the same reason the
 # harvest job isn't (see resources/openalex_harvest_job.yml).
+#
+# Serverless-only workspace: no new_cluster block, and dependencies move
+# from libraries: (a classic-cluster install mechanism) into each task's
+# own environment_key + a matching environments: entry's spec.dependencies
+# -- environment_version "2" is current as of this writing; bump the string
+# if a deploy rejects it with a supported-versions list.
 
 resources:
   jobs:
     openalex_sync_to_lakebase:
       name: openalex-sync-to-lakebase
+      environments:
+        - environment_key: sync_env
+          spec:
+            environment_version: "2"
+            dependencies:
+              - psycopg2-binary
+              - SQLAlchemy
+              - databricks-sdk
+        - environment_key: embed_env
+          spec:
+            environment_version: "2"
+            dependencies:
+              - psycopg2-binary
+              - databricks-sdk
+              - sentence-transformers
       tasks:
         - task_key: sync
+          environment_key: sync_env
           spark_python_task:
             python_file: ../pipelines/sync_to_lakebase.py
-          libraries:
-            - pypi:
-                package: psycopg2-binary
-            - pypi:
-                package: SQLAlchemy
-            - pypi:
-                package: databricks-sdk
-          new_cluster:
-            spark_version: 15.4.x-scala2.12
-            node_type_id: Standard_DS3_v2
-            num_workers: 0
-            spark_conf:
-              spark.databricks.cluster.profile: singleNode
-              spark.master: "local[*]"
-            custom_tags:
-              ResourceClass: SingleNode
 
         - task_key: embed
           depends_on:
             - task_key: sync
+          environment_key: embed_env
           spark_python_task:
             python_file: ../pipelines/embed_papers.py
-          libraries:
-            - pypi:
-                package: psycopg2-binary
-            - pypi:
-                package: databricks-sdk
-            - pypi:
-                package: sentence-transformers
-          new_cluster:
-            spark_version: 15.4.x-scala2.12
-            node_type_id: Standard_DS3_v2
-            num_workers: 0
-            spark_conf:
-              spark.databricks.cluster.profile: singleNode
-              spark.master: "local[*]"
-            custom_tags:
-              ResourceClass: SingleNode

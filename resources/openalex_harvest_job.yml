@@ -12,13 +12,33 @@
 # want to refresh or extend the corpus -- e.g. after adding a seed topic.
 # land_topics only needs re-running if OpenAlex's topic taxonomy itself
 # changes, which is rare -- harmless to re-run anyway, it just overwrites.
+#
+# Serverless-only workspace: no new_cluster block on either task -- a
+# spark_python_task on serverless compute is required (not optional) to
+# declare environment_key + a matching entry in this job's environments:
+# list instead. pyarrow isn't stdlib but ships with the Databricks Runtime
+# on classic clusters; serverless doesn't carry that same assumption, so
+# land_topics_env declares it explicitly rather than relying on it being
+# preinstalled. environment_version "2" is current as of this writing --
+# if a deploy rejects it, bump the string to whatever version the error
+# message says is supported.
 
 resources:
   jobs:
     openalex_snowball_harvest:
       name: openalex-snowball-harvest
+      environments:
+        - environment_key: harvest_env
+          spec:
+            environment_version: "2"
+        - environment_key: land_topics_env
+          spec:
+            environment_version: "2"
+            dependencies:
+              - pyarrow
       tasks:
         - task_key: harvest
+          environment_key: harvest_env
           spark_python_task:
             python_file: ../harvester/snowball.py
             parameters:
@@ -26,28 +46,11 @@ resources:
               - "/Volumes/rise_of_ai_de/research_copilot/raw/harvest"
               - "--per-topic"
               - "200"
-          new_cluster:
-            spark_version: 15.4.x-scala2.12
-            node_type_id: Standard_DS3_v2
-            num_workers: 0  # single-node: this task is API calls, not distributed compute
-            spark_conf:
-              spark.databricks.cluster.profile: singleNode
-              spark.master: "local[*]"
-            custom_tags:
-              ResourceClass: SingleNode
 
         - task_key: land_topics
+          environment_key: land_topics_env
           spark_python_task:
             python_file: ../harvester/land_topics.py
             parameters:
               - "--out"
               - "/Volumes/rise_of_ai_de/research_copilot/raw/topics/topics.jsonl"
-          new_cluster:
-            spark_version: 15.4.x-scala2.12
-            node_type_id: Standard_DS3_v2
-            num_workers: 0  # single-node: reads one small Parquet file over HTTPS
-            spark_conf:
-              spark.databricks.cluster.profile: singleNode
-              spark.master: "local[*]"
-            custom_tags:
-              ResourceClass: SingleNode

@@ -215,10 +215,24 @@ correctness one.
   realistic learning goals instead of one. See `SEED_TOPICS` in
   `harvester/snowball.py` for the list and why each was picked.
 - **`harvester/` has no `requirements.txt`.** `snowball.py` is pure stdlib
-  (`urllib`, `json`, `argparse`). `land_topics.py` also imports `pyarrow` to
-  read the Parquet snapshot's footer/row-groups directly over HTTPS -- not
-  stdlib, but it ships with the Databricks Runtime already (Spark uses Arrow
-  internally), so neither task in `resources/openalex_harvest_job.yml` needs
-  a `libraries:` block. Only true for the Databricks job; running
-  `land_topics.py` by hand outside a Databricks cluster needs
-  `pip install pyarrow` first.
+  (`urllib`, `json`, `argparse`) and needs nothing extra. `land_topics.py`
+  also imports `pyarrow` to read the Parquet snapshot's footer/row-groups
+  directly over HTTPS -- not stdlib, and (unlike on a classic Databricks
+  Runtime cluster, where it ships preinstalled) not assumed present on
+  serverless either, so `land_topics_env`'s `spec.dependencies` in
+  `resources/openalex_harvest_job.yml` declares it explicitly. Running
+  `land_topics.py` by hand outside Databricks needs `pip install pyarrow`
+  first (also in the root `requirements.txt`, for that same reason).
+- **This workspace only permits serverless compute for jobs** -- a
+  `new_cluster:` block on any task is a hard `400 INVALID_PARAMETER_VALUE`
+  at deploy time, not just a style preference. Every `spark_python_task` in
+  `resources/openalex_harvest_job.yml` and `resources/openalex_sync_job.yml`
+  instead declares `environment_key:` pointing at an entry in that job's own
+  `environments:` list (`spec.environment_version` + `spec.dependencies:` --
+  the serverless equivalent of a cluster's `libraries:` block, which
+  serverless doesn't support at all). `environment_version: "2"` is current
+  as of this writing; if a future deploy rejects it, the error names the
+  versions that are actually supported -- bump the string, this isn't a
+  design decision worth debating. `resources/openalex_pipeline.yml` is
+  unaffected: Lakeflow Declarative Pipelines have their own `serverless:`
+  boolean, a completely different mechanism from a Job task's compute.
