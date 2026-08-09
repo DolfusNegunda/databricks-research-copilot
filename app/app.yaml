@@ -22,8 +22,18 @@ env:
     value: "/tmp/.cache/sentence-transformers"
 
   # --- Agent Bricks --------------------------------------------------------
-  - name: AGENT_SERVING_ENDPOINT
-    value: "mas-99b20b37-endpoint"
+  # The Supervisor Agent (mas-99b20b37-endpoint) exists and is queryable from
+  # this app's own service principal (permission granted, confirmed live),
+  # but it can't reach mcp-research-copilot itself: "Failed to register tools
+  # from Databricks App MCP server 'mcp-research-copilot': HTTP 401". Checked
+  # every access-control surface the mcp-research-copilot app exposes --
+  # Authorization, Settings, the Resources/Edit page -- none offers a way to
+  # grant another identity permission to call in. Left commented out so this
+  # tab degrades to its clean "not configured" message rather than a visible
+  # error; the capstone's read+write agent requirement is already
+  # demonstrated live via the AI Playground with this same MCP server.
+  # - name: AGENT_SERVING_ENDPOINT
+  #   value: "mas-99b20b37-endpoint"
 
   # Local development only -- see app.py's _current_user_email(). Do not set
   # this in the deployed app.
