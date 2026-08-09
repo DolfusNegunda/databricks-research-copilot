@@ -369,11 +369,22 @@ function renderCollections() {
   }
 }
 
-document.getElementById("new-collection-btn").addEventListener("click", async () => {
-  const name = window.prompt("Collection name:");
-  if (!name || !name.trim()) return;
+const newCollectionDialog = document.getElementById("new-collection-dialog");
+const newCollectionInput = document.getElementById("new-collection-name");
+
+document.getElementById("new-collection-btn").addEventListener("click", () => {
+  newCollectionInput.value = "";
+  newCollectionDialog.showModal();
+  newCollectionInput.focus();
+});
+
+newCollectionDialog.querySelector('[data-action="cancel"]').addEventListener("click", () => newCollectionDialog.close());
+
+newCollectionDialog.addEventListener("close", async () => {
+  const name = newCollectionInput.value.trim();
+  if (newCollectionDialog.returnValue !== "create" || !name) return;
   try {
-    await apiSend("POST", "/api/collections", { name: name.trim() });
+    await apiSend("POST", "/api/collections", { name });
     await loadCollections();
     toast("Collection created.");
   } catch (err) {
@@ -381,22 +392,35 @@ document.getElementById("new-collection-btn").addEventListener("click", async ()
   }
 });
 
-async function promptAddToCollection(workId) {
+const addToCollectionDialog = document.getElementById("add-to-collection-dialog");
+const addToCollectionList = document.getElementById("add-to-collection-list");
+
+addToCollectionDialog.querySelector('[data-action="cancel"]').addEventListener("click", () => addToCollectionDialog.close());
+
+function promptAddToCollection(workId) {
   if (!state.collections.length) {
     toast("Create a collection first (+ New, in the sidebar).", "error");
     return;
   }
-  const names = state.collections.map((c) => `${c.collection_id}: ${c.name}`).join("\n");
-  const answer = window.prompt(`Add to which collection?\n${names}\n\nEnter the number:`);
-  const id = parseInt(answer, 10);
-  if (!id || !state.collections.some((c) => c.collection_id === id)) return;
-  try {
-    await apiSend("POST", `/api/collections/${id}/papers`, { work_id: workId });
-    toast("Added to collection.");
-    if (state.selectedCollectionId === id) await selectCollection(id);
-  } catch (err) {
-    toast(`Could not add paper: ${err.message}`, "error");
+  clear(addToCollectionList);
+  for (const c of state.collections) {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "dialog__row";
+    row.textContent = c.name;
+    row.addEventListener("click", async () => {
+      addToCollectionDialog.close();
+      try {
+        await apiSend("POST", `/api/collections/${c.collection_id}/papers`, { work_id: workId });
+        toast("Added to collection.");
+        if (state.selectedCollectionId === c.collection_id) await selectCollection(c.collection_id);
+      } catch (err) {
+        toast(`Could not add paper: ${err.message}`, "error");
+      }
+    });
+    addToCollectionList.appendChild(row);
   }
+  addToCollectionDialog.showModal();
 }
 
 async function selectCollection(id) {
@@ -494,6 +518,8 @@ function buildGraph(path) {
 
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.setAttribute("width", width);
+  svg.setAttribute("height", height);
 
   const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
   const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
@@ -589,11 +615,41 @@ document.getElementById("chat-form").addEventListener("submit", async (e) => {
   appendChatMessage(message, "user");
   try {
     const data = await apiSend("POST", "/api/agent/chat", { message });
-    appendChatMessage(JSON.stringify(data.response), "agent");
+    const reply = extractAgentReply(data.response);
+    appendChatMessage(reply !== null ? reply : JSON.stringify(data.response), "agent");
   } catch (err) {
     appendChatMessage(err.message, "error");
   }
 });
+
+// Agent-serving responses vary by how the endpoint was built (ChatCompletions,
+// MLflow ChatAgent, or the newer Responses-API shape) -- try each known shape
+// and fall back to the raw response so a reply is never silently swallowed.
+function extractAgentReply(response) {
+  if (!response) return null;
+
+  const choiceText = response.choices?.[0]?.message?.content;
+  if (typeof choiceText === "string" && choiceText.trim()) return choiceText;
+
+  if (Array.isArray(response.messages)) {
+    for (let i = response.messages.length - 1; i >= 0; i--) {
+      const m = response.messages[i];
+      if (m?.role === "assistant" && typeof m.content === "string" && m.content.trim()) return m.content;
+    }
+  }
+
+  if (Array.isArray(response.output)) {
+    for (let i = response.output.length - 1; i >= 0; i--) {
+      const item = response.output[i];
+      if (item?.type === "message" && Array.isArray(item.content)) {
+        const part = item.content.find((c) => typeof c?.text === "string" && c.text.trim());
+        if (part) return part.text;
+      }
+    }
+  }
+
+  return null;
+}
 
 function appendChatMessage(text, variant) {
   const log = document.getElementById("chat-log");

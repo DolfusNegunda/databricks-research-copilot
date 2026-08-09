@@ -107,6 +107,25 @@
 
   <div class="toasts" id="toasts"></div>
 
+  <dialog class="dialog" id="new-collection-dialog">
+    <form method="dialog" class="form">
+      <div class="dialog__title">New collection</div>
+      <input type="text" id="new-collection-name" placeholder="Collection name" maxlength="200" required>
+      <div class="dialog__actions">
+        <button type="button" class="btn btn--ghost btn--sm" data-action="cancel">Cancel</button>
+        <button type="submit" class="btn btn--primary btn--sm" value="create">Create</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog" id="add-to-collection-dialog">
+    <div class="dialog__title">Add to collection</div>
+    <div class="dialog__list" id="add-to-collection-list"></div>
+    <div class="dialog__actions">
+      <button type="button" class="btn btn--ghost btn--sm" data-action="cancel">Cancel</button>
+    </div>
+  </dialog>
+
   <template id="tmpl-paper-card">
     <div class="paper-card">
       <div class="paper-card__title"></div>

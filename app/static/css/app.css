@@ -252,6 +252,21 @@ select:focus { border-color: var(--teal-600); outline: none; }
 .card__title { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tan-500); }
 .card__empty { font-size: 12.5px; color: var(--tan-700); padding: 10px 2px 2px; }
 
+/* -------------------------------------------------------------- dialog ---- */
+.dialog {
+  border: 1px solid var(--line-strong); border-radius: var(--radius-lg); background: var(--ink-800);
+  color: var(--cream); padding: 18px; width: min(360px, calc(100% - 40px)); box-shadow: var(--shadow-lg);
+}
+.dialog::backdrop { background: rgb(0 0 0 / 0.55); }
+.dialog__title { font-size: 15px; font-weight: 650; margin-bottom: 12px; }
+.dialog__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.dialog__list { display: flex; flex-direction: column; gap: 4px; max-height: 240px; overflow-y: auto; margin-bottom: 4px; }
+.dialog__row {
+  display: block; width: 100%; text-align: left; background: var(--ink-750); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); color: var(--cream); padding: 9px 11px; font-size: 13px; cursor: pointer;
+}
+.dialog__row:hover { background: var(--ink-700); border-color: var(--line-strong); }
+
 /* --------------------------------------------------------------- forms ---- */
 .form { display: flex; flex-direction: column; gap: 12px; }
 .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
@@ -313,7 +328,7 @@ input:focus, textarea:focus { border-color: var(--teal-600); outline: none; }
    the edges themselves and is a real property of the data worth flagging,
    not hiding. */
 .graph { position: relative; width: 100%; min-height: 320px; }
-.graph svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.graph svg { display: block; max-width: 100%; height: auto; overflow: visible; }
 .graph__edge { stroke: var(--tan-700); stroke-width: 1.5; fill: none; marker-end: url(#rc-arrow); }
 .graph__edge--cycle { stroke: var(--gold-500); stroke-dasharray: 4 3; }
 .graph__node circle { fill: var(--teal-600); stroke: var(--ink-800); stroke-width: 2; }
