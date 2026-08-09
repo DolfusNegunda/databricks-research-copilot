@@ -94,7 +94,13 @@ def _short_id(col):
         "harvest (harvester/snowball.py). abstract_inverted_index is pinned "
         "to STRING via a schema hint -- its keys are the abstract's own "
         "words, an unbounded vocabulary, so letting Auto Loader infer a "
-        "struct from it would try to build one field per distinct word."
+        "struct from it would try to build one field per distinct word. "
+        "referenced_works is pinned to ARRAY<STRING> for the same reason "
+        "abstract_inverted_index is pinned: works with zero references "
+        "(a real, common case -- most-cited/foundational papers often have "
+        "none indexed) make inference see nothing but empty arrays and "
+        "default the whole column to STRING, which then fails downstream "
+        "at explode()/coalesce() against a real array literal."
     ),
 )
 def bronze_works_raw():
@@ -102,7 +108,10 @@ def bronze_works_raw():
         spark.readStream.format("cloudFiles")  # noqa: F821
         .option("cloudFiles.format", "json")
         .option("cloudFiles.schemaLocation", f"{SCHEMA_LOCATION}/works")
-        .option("cloudFiles.schemaHints", "abstract_inverted_index STRING")
+        .option(
+            "cloudFiles.schemaHints",
+            "abstract_inverted_index STRING, referenced_works ARRAY<STRING>",
+        )
         .load(HARVEST_PATH)
         .withColumn("_ingested_at", F.current_timestamp())
         .withColumn("_source", F.lit("api_snowball"))
@@ -115,14 +124,25 @@ def bronze_works_raw():
     comment=(
         "OpenAlex's full topic taxonomy (~4,500 rows), landed from the "
         "Parquet snapshot by harvester/land_topics.py -- the one place this "
-        "pipeline reads the snapshot directly rather than the API."
+        "pipeline reads the snapshot directly rather than the API. "
+        "domain/field/subfield are pinned to STRUCT<id, display_name> -- "
+        "the taxonomy's first several updated_date partitions are one row "
+        "each (see land_topics.py's own output), so unhinted inference can "
+        "sample only those before the one large partition with real "
+        "coverage arrives, and lock in a degenerate type from too small a "
+        "sample."
     ),
 )
 def bronze_dim_topics():
+    _topic_struct = "STRUCT<id: STRING, display_name: STRING>"
     return (
         spark.readStream.format("cloudFiles")  # noqa: F821
         .option("cloudFiles.format", "json")
         .option("cloudFiles.schemaLocation", f"{SCHEMA_LOCATION}/topics")
+        .option(
+            "cloudFiles.schemaHints",
+            f"domain {_topic_struct}, field {_topic_struct}, subfield {_topic_struct}",
+        )
         .load(TOPICS_DIR)
         .withColumn("_ingested_at", F.current_timestamp())
         .withColumn("_source", F.lit("snapshot_dim"))
