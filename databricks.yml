@@ -17,14 +17,15 @@ targets:
     mode: development
     default: true
     workspace:
-      # Fill in with your own workspace URL before deploying, e.g.
-      # https://your-workspace.cloud.databricks.com -- never commit a real
-      # workspace host here.
-      host: https://REPLACE_WITH_YOUR_WORKSPACE_HOST.cloud.databricks.com
+      # profile:, not host: -- a named lookup into your local, git-ignored
+      # ~/.databrickscfg (or %USERPROFILE%\.databrickscfg on Windows), never
+      # a literal workspace URL committed to this file. `databricks
+      # configure` or the VS Code extension's "Configure workspace" flow
+      # both write a profile named DEFAULT unless you name it something
+      # else -- match whatever's actually in your .databrickscfg.
+      profile: DEFAULT
 
   prod:
     mode: production
     workspace:
-      # Fill in with your own workspace URL before deploying -- never commit
-      # a real workspace host here.
-      host: https://REPLACE_WITH_YOUR_WORKSPACE_HOST.cloud.databricks.com
+      profile: DEFAULT

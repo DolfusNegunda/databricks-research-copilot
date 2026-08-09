@@ -106,7 +106,11 @@ To actually run the pipeline and populate Lakebase, in a Databricks workspace:
 1. **Deploy the bundle**: `databricks bundle deploy` from the repo root —
    creates the pipeline (`resources/openalex_pipeline.yml`) and both jobs
    (`resources/openalex_harvest_job.yml`, `resources/openalex_sync_job.yml`).
-   Fill in your workspace host in `databricks.yml` first.
+   `databricks.yml` authenticates via `profile: DEFAULT`, a named lookup
+   into your local `~/.databrickscfg` — run `databricks configure` first
+   (or the VS Code extension's "Configure workspace" flow), and if it names
+   your profile something other than `DEFAULT`, update `databricks.yml` to
+   match.
 2. **Harvest**: run the `openalex-snowball-harvest` job (Jobs UI or
    `databricks bundle run openalex_snowball_harvest`) — its two tasks land
    the citation-snowball corpus and the topics taxonomy into the Volume.
