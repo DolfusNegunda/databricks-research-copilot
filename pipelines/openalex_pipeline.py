@@ -91,26 +91,42 @@ def _short_id(col):
     name="bronze_works_raw",
     comment=(
         "Raw OpenAlex work records from the topic-seeded citation snowball "
-        "harvest (harvester/snowball.py). abstract_inverted_index is pinned "
-        "to STRING via a schema hint -- its keys are the abstract's own "
-        "words, an unbounded vocabulary, so letting Auto Loader infer a "
-        "struct from it would try to build one field per distinct word. "
-        "referenced_works is pinned to ARRAY<STRING> for the same reason "
-        "abstract_inverted_index is pinned: works with zero references "
-        "(a real, common case -- most-cited/foundational papers often have "
-        "none indexed) make inference see nothing but empty arrays and "
-        "default the whole column to STRING, which then fails downstream "
-        "at explode()/coalesce() against a real array literal."
+        "harvest (harvester/snowball.py). Every nested field silver_works "
+        "actually extracts (primary_topic, open_access, authorships, "
+        "referenced_works) is pinned via a schema hint, plus "
+        "abstract_inverted_index -- confirmed the hard way, one failed live "
+        "run at a time: a schema hint corrects Auto Loader's inference for "
+        "that field even against an already-persisted, wrong schema at "
+        "SCHEMA_LOCATION, but a Full Refresh alone did not re-infer the "
+        "*un-hinted* fields correctly on this Volume. Cheaper to pin every "
+        "nested field actually used than discover each one from another "
+        "AnalysisException."
     ),
 )
 def bronze_works_raw():
+    _topic_ref = "STRUCT<id: STRING, display_name: STRING>"
+    _primary_topic = (
+        f"STRUCT<id: STRING, display_name: STRING, score: DOUBLE, "
+        f"subfield: {_topic_ref}, field: {_topic_ref}, domain: {_topic_ref}>"
+    )
+    _open_access = (
+        "STRUCT<is_oa: BOOLEAN, oa_status: STRING, oa_url: STRING, "
+        "any_repository_has_fulltext: BOOLEAN>"
+    )
+    _authorships = (
+        "ARRAY<STRUCT<author_position: STRING, "
+        "author: STRUCT<id: STRING, display_name: STRING, orcid: STRING>, "
+        "is_corresponding: BOOLEAN>>"
+    )
     return (
         spark.readStream.format("cloudFiles")  # noqa: F821
         .option("cloudFiles.format", "json")
         .option("cloudFiles.schemaLocation", f"{SCHEMA_LOCATION}/works")
         .option(
             "cloudFiles.schemaHints",
-            "abstract_inverted_index STRING, referenced_works ARRAY<STRING>",
+            f"abstract_inverted_index STRING, referenced_works ARRAY<STRING>, "
+            f"primary_topic {_primary_topic}, open_access {_open_access}, "
+            f"authorships {_authorships}",
         )
         .load(HARVEST_PATH)
         .withColumn("_ingested_at", F.current_timestamp())
