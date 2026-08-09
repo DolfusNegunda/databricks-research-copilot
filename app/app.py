@@ -174,7 +174,7 @@ def create_goal():
     title = (body.get("title") or "").strip()
     if not title:
         return jsonify(error="title is required"), 400
-    rows = lakebase.run_query(
+    rows = lakebase.run_write_returning(
         "INSERT INTO learning_goals (user_id, title, description) VALUES (%s, %s, %s) RETURNING goal_id",
         (email, title, body.get("description")),
     )
@@ -207,7 +207,7 @@ def create_collection():
     name = (body.get("name") or "").strip()
     if not name:
         return jsonify(error="name is required"), 400
-    rows = lakebase.run_query(
+    rows = lakebase.run_write_returning(
         "INSERT INTO collections (user_id, goal_id, name, description) VALUES (%s, %s, %s, %s) "
         "RETURNING collection_id",
         (email, body.get("goal_id"), name, body.get("description")),
@@ -381,7 +381,7 @@ def save_note():
     work_id, note_text = body.get("work_id"), (body.get("note_text") or "").strip()
     if not work_id or not note_text:
         return jsonify(error="work_id and note_text are required"), 400
-    rows = lakebase.run_query(
+    rows = lakebase.run_write_returning(
         "INSERT INTO notes (user_id, work_id, collection_id, note_text) VALUES (%s, %s, %s, %s) RETURNING note_id",
         (email, work_id, body.get("collection_id"), note_text),
     )

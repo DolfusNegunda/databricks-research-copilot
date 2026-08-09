@@ -359,6 +359,21 @@ def run_write(sql: str, params: tuple | dict | None = None) -> int:
             return cur.rowcount
 
 
+def run_write_returning(sql: str, params: tuple | dict | None = None) -> list[dict]:
+    """Run an INSERT/UPDATE ... RETURNING and commit before the connection goes
+    back to the pool. run_query() never commits, so a RETURNING write executed
+    through it hands back a real row from an uncommitted transaction that the
+    pool then rolls back on putconn() -- the caller sees an id for a row that
+    was never persisted. Use this, not run_query(), for any write that needs
+    RETURNING."""
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            rows = [dict(row) for row in cur.fetchall()]
+            conn.commit()
+            return rows
+
+
 def _render_schema_sql(embedding_dim: int) -> str:
     text = (_SQL_DIR / "01_schema.sql").read_text(encoding="utf-8")
     return text.replace("{{EMBEDDING_DIM}}", str(int(embedding_dim)))

@@ -304,6 +304,18 @@ def run_write(sql: str, params: tuple | dict | None = None) -> int:
             return cur.rowcount
 
 
+def run_write_returning(sql: str, params: tuple | dict | None = None) -> list[dict]:
+    """INSERT/UPDATE ... RETURNING, committed before the connection returns to
+    the pool. run_query() never commits, so a RETURNING write run through it
+    gets rolled back by the pool's putconn() -- use this instead."""
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            rows = [dict(row) for row in cur.fetchall()]
+            conn.commit()
+            return rows
+
+
 def _render_schema_sql(embedding_dim: int) -> str:
     text = (_SQL_DIR / "01_schema.sql").read_text(encoding="utf-8")
     return text.replace("{{EMBEDDING_DIM}}", str(int(embedding_dim)))

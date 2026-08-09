@@ -13,6 +13,7 @@ check that caught it.
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 import sys
@@ -284,6 +285,64 @@ check(
     not _missing_ids,
     f"referenced but not found in the template: {_missing_ids}",
 )
+
+# ---------------------------------------------------------------------------
+# lakebase write safety: run_query() never commits (see run_write_returning's
+# docstring in lakebase.py) -- a psycopg2 pooled connection gets rolled back
+# by putconn() if it's handed back mid-transaction, so any SQL containing
+# INSERT/UPDATE/DELETE must go through run_write() or run_write_returning(),
+# never run_query(). Parsed with ast (real source structure), not eyeballed.
+# ---------------------------------------------------------------------------
+
+
+def _sql_string_constants(tree: ast.Module) -> dict[str, str]:
+    consts: dict[str, str] = {}
+    for node in ast.iter_child_nodes(tree):
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            try:
+                value = ast.literal_eval(node.value)
+            except (ValueError, TypeError):
+                continue
+            if isinstance(value, str):
+                consts[node.targets[0].id] = value
+    return consts
+
+
+def _run_query_sql_texts(source: str) -> list[tuple[str, str]]:
+    """(label, resolved SQL text) for every `<something>.run_query(...)` call site."""
+    tree = ast.parse(source)
+    consts = _sql_string_constants(tree)
+    found: list[tuple[str, str]] = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "run_query"):
+            continue
+        if not node.args:
+            continue
+        arg = node.args[0]
+        if isinstance(arg, ast.Name) and arg.id in consts:
+            found.append((arg.id, consts[arg.id]))
+            continue
+        try:
+            literal = ast.literal_eval(arg)
+        except (ValueError, TypeError):
+            continue
+        if isinstance(literal, str):
+            found.append((f"<inline SQL at line {node.lineno}>", literal))
+    return found
+
+
+_WRITE_KEYWORDS = re.compile(r"\b(INSERT|UPDATE|DELETE)\b", re.IGNORECASE)
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+
+for _label in ("mcp_server/tools.py", "app/app.py"):
+    _source = (_REPO_ROOT / _label).read_text(encoding="utf-8")
+    _offenders = [(name, sql) for name, sql in _run_query_sql_texts(_source) if _WRITE_KEYWORDS.search(sql)]
+    check(
+        f"{_label}: run_query() is never called with INSERT/UPDATE/DELETE SQL "
+        "(it never commits -- writes must use run_write()/run_write_returning())",
+        not _offenders,
+        str(_offenders),
+    )
 
 print(f"\n{passed} passed, {len(failed)} failed")
 if failed:

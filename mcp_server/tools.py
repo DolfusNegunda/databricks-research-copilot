@@ -297,7 +297,7 @@ def load_tools(mcp_server) -> None:  # noqa: ANN001
 
             email = current_user_email()
             _ensure_user(email)
-            rows = lakebase.run_query(_INSERT_LEARNING_GOAL, (email, title, description))
+            rows = lakebase.run_write_returning(_INSERT_LEARNING_GOAL, (email, title, description))
             return {"goal_id": rows[0]["goal_id"]}
         except Exception as exc:  # noqa: BLE001
             return {"error": str(exc)}
@@ -313,7 +313,7 @@ def load_tools(mcp_server) -> None:  # noqa: ANN001
 
             email = current_user_email()
             _ensure_user(email)
-            rows = lakebase.run_query(_INSERT_COLLECTION, (email, goal_id, name, description))
+            rows = lakebase.run_write_returning(_INSERT_COLLECTION, (email, goal_id, name, description))
             return {"collection_id": rows[0]["collection_id"]}
         except Exception as exc:  # noqa: BLE001
             return {"error": str(exc)}
@@ -384,7 +384,7 @@ def load_tools(mcp_server) -> None:  # noqa: ANN001
 
             email = current_user_email()
             _ensure_user(email)
-            rows = lakebase.run_query(_INSERT_NOTE, (email, work_id, collection_id, note_text))
+            rows = lakebase.run_write_returning(_INSERT_NOTE, (email, work_id, collection_id, note_text))
             return {"note_id": rows[0]["note_id"]}
         except Exception as exc:  # noqa: BLE001
             return {"error": str(exc)}
