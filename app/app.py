@@ -423,11 +423,18 @@ def agent_chat():
         resp = requests.post(
             f"{cfg.host}/serving-endpoints/{AGENT_SERVING_ENDPOINT}/invocations",
             headers=cfg.authenticate(),
-            json={"input": [{"role": "user", "content": message}]},
+            json={"input": [{"role": "user", "content": message}], "stream": False},
             timeout=60,
         )
         resp.raise_for_status()
-        return jsonify(response=resp.json())
+        try:
+            return jsonify(response=resp.json())
+        except ValueError:
+            # Surface the raw body on the next failure instead of a bare
+            # JSONDecodeError -- this endpoint's exact response shape hasn't
+            # been confirmed live yet, so a diagnostic here beats a second
+            # blind guess if stream: False isn't the whole story.
+            raise RuntimeError(f"non-JSON response (status {resp.status_code}): {resp.text[:500]!r}") from None
     except Exception as exc:  # noqa: BLE001
         return jsonify(error="agent_call_failed", message=str(exc)), 502
 
