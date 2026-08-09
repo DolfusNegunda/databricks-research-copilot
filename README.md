@@ -96,8 +96,8 @@ To actually run the pipeline and populate Lakebase, in a Databricks workspace:
 0. **Prerequisites, once**: a Unity Catalog Volume for the harvester to land
    into (nothing creates this automatically):
    ```sql
-   CREATE SCHEMA IF NOT EXISTS main.research_copilot;
-   CREATE VOLUME IF NOT EXISTS main.research_copilot.raw;
+   CREATE SCHEMA IF NOT EXISTS rise_of_ai_de.research_copilot;
+   CREATE VOLUME IF NOT EXISTS rise_of_ai_de.research_copilot.raw;
    ```
    Also confirm the shared Lakebase secret already exists (`database` /
    `lakebase-url`) — it does if you've deployed any sibling bootcamp project

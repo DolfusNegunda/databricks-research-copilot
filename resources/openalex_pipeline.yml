@@ -13,14 +13,14 @@ resources:
   pipelines:
     openalex_research_pipeline:
       name: openalex-research-copilot
-      catalog: main
+      catalog: rise_of_ai_de
       schema: research_copilot
       serverless: true
       continuous: false  # triggered: re-run after a harvester run, not a 24/7 stream
       configuration:
-        openalex.harvest_path: /Volumes/main/research_copilot/raw/harvest
-        openalex.topics_dir: /Volumes/main/research_copilot/raw/topics
-        openalex.schema_location: /Volumes/main/research_copilot/raw/_schemas
+        openalex.harvest_path: /Volumes/rise_of_ai_de/research_copilot/raw/harvest
+        openalex.topics_dir: /Volumes/rise_of_ai_de/research_copilot/raw/topics
+        openalex.schema_location: /Volumes/rise_of_ai_de/research_copilot/raw/_schemas
       libraries:
         - file:
             path: ../pipelines/openalex_pipeline.py

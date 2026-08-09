@@ -150,7 +150,14 @@ genuinely offline-safe to import despite needing those packages installed.
   citation_edges). Clears `papers.embedded_at` only when
   `narrative_abstract` actually changed, compared inline against the
   pre-update row inside the same `ON CONFLICT DO UPDATE` — no separate
-  content-hash column needed for that comparison.
+  content-hash column needed for that comparison. Its own `CATALOG`/`SCHEMA`
+  constants fully-qualify every `spark.read.table(...)` call
+  (`rise_of_ai_de.research_copilot.gold_papers_for_serving`, not the bare
+  name `openalex_pipeline.py`'s `@dp.table` defs use) — this runs as a plain
+  `spark_python_task` on its own job cluster, a different Spark session than
+  the pipeline's, with no default catalog/schema to inherit unqualified
+  names against. Keep these constants in sync by hand with
+  `resources/openalex_pipeline.yml`'s `catalog:`/`schema:`.
 - **`pipelines/embed_papers.py`** — deliberately separate from sync (same
   reason as the weather-rag sibling: sync is cheap, embedding loads a real
   model). Batches the model's `encode()` call across every paper fetched in

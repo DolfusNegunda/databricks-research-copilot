@@ -68,9 +68,9 @@ def _reconstruct_abstract(inverted_index):  # noqa: ANN001, ANN201
 
 reconstruct_abstract_udf = F.udf(_reconstruct_abstract, T.StringType())
 
-HARVEST_PATH = spark.conf.get("openalex.harvest_path", "/Volumes/main/research_copilot/raw/harvest")  # noqa: F821
-TOPICS_DIR = spark.conf.get("openalex.topics_dir", "/Volumes/main/research_copilot/raw/topics")  # noqa: F821
-SCHEMA_LOCATION = spark.conf.get("openalex.schema_location", "/Volumes/main/research_copilot/raw/_schemas")  # noqa: F821
+HARVEST_PATH = spark.conf.get("openalex.harvest_path", "/Volumes/rise_of_ai_de/research_copilot/raw/harvest")  # noqa: F821
+TOPICS_DIR = spark.conf.get("openalex.topics_dir", "/Volumes/rise_of_ai_de/research_copilot/raw/topics")  # noqa: F821
+SCHEMA_LOCATION = spark.conf.get("openalex.schema_location", "/Volumes/rise_of_ai_de/research_copilot/raw/_schemas")  # noqa: F821
 
 
 def _short_id(col):

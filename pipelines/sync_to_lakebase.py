@@ -19,6 +19,14 @@ see _UPSERT_PAPERS below for exactly when embedded_at gets cleared.
 
 `spark` is runtime-injected in a Databricks notebook/job context; this file
 is not run with a plain `python` interpreter.
+
+Table names below are fully qualified (catalog.schema.table), not the bare
+names openalex_pipeline.py's own @dp.table/@dp.materialized_view defs use --
+this file runs as a plain spark_python_task on its own job cluster, a
+different Spark session than the pipeline's, with no default catalog/schema
+of its own to inherit. CATALOG/SCHEMA here must match
+resources/openalex_pipeline.yml's catalog:/schema: by hand; nothing enforces
+that automatically.
 """
 
 from __future__ import annotations
@@ -31,6 +39,13 @@ from psycopg2.extras import execute_values
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import lakebase  # noqa: E402
+
+CATALOG = "rise_of_ai_de"
+SCHEMA = "research_copilot"
+
+
+def _t(table: str) -> str:
+    return f"{CATALOG}.{SCHEMA}.{table}"
 
 _UPSERT_PAPERS = """
     INSERT INTO papers (
@@ -117,17 +132,19 @@ def sync() -> dict:
             r["narrative_abstract"],
             json.dumps(json.loads(r["payload"])) if isinstance(r["payload"], str) else json.dumps(r["payload"]),
         )
-        for r in spark.read.table("gold_papers_for_serving").collect()  # noqa: F821
+        for r in spark.read.table(_t("gold_papers_for_serving")).collect()  # noqa: F821
     ]
     authors = [
-        (r["author_id"], r["display_name"], r["orcid"]) for r in spark.read.table("silver_authors").collect()  # noqa: F821
+        (r["author_id"], r["display_name"], r["orcid"])
+        for r in spark.read.table(_t("silver_authors")).collect()  # noqa: F821
     ]
     paper_authors = [
         (r["work_id"], r["author_id"], r["author_position"], r["is_corresponding"])
-        for r in spark.read.table("silver_paper_authors").collect()  # noqa: F821
+        for r in spark.read.table(_t("silver_paper_authors")).collect()  # noqa: F821
     ]
     citation_edges = [
-        (r["citing_work_id"], r["cited_work_id"]) for r in spark.read.table("gold_citation_graph").collect()  # noqa: F821
+        (r["citing_work_id"], r["cited_work_id"])
+        for r in spark.read.table(_t("gold_citation_graph")).collect()  # noqa: F821
     ]
 
     counts = {"papers": 0, "authors": 0, "paper_authors": 0, "citation_edges": 0}

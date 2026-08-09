@@ -23,7 +23,7 @@ resources:
             python_file: ../harvester/snowball.py
             parameters:
               - "--out-dir"
-              - "/Volumes/main/research_copilot/raw/harvest"
+              - "/Volumes/rise_of_ai_de/research_copilot/raw/harvest"
               - "--per-topic"
               - "200"
           new_cluster:
@@ -41,7 +41,7 @@ resources:
             python_file: ../harvester/land_topics.py
             parameters:
               - "--out"
-              - "/Volumes/main/research_copilot/raw/topics/topics.jsonl"
+              - "/Volumes/rise_of_ai_de/research_copilot/raw/topics/topics.jsonl"
           new_cluster:
             spark_version: 15.4.x-scala2.12
             node_type_id: Standard_DS3_v2
