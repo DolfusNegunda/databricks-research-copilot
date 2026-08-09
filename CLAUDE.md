@@ -86,6 +86,25 @@ the sibling projects' version of that script.
   via the `pg_namespace` guard (same pattern as every sibling project — see
   `../CLAUDE.md` for why the guard exists). `papers.seed_topic` records which
   of the 8 harvest topics pulled each work in.
+- **`pipelines/openalex_pipeline.py`** — bronze (`bronze_works_raw` via Auto
+  Loader over the harvester's JSON, `bronze_dim_topics` via Auto Loader over
+  the landed snapshot entity) → silver (`silver_works` with the schema
+  contract + `dp.expect_all_or_drop`/`dp.expect`/`dp.expect_or_fail` gates,
+  `silver_authors`/`silver_paper_authors`/`silver_citation_edges` exploded
+  from it, `silver_topics_dim`) → gold (`gold_citation_graph` restricted to
+  the induced subgraph, `gold_paper_metrics` with `foundational_score`,
+  `gold_topic_rollups`, `gold_author_metrics`, `gold_papers_for_serving`).
+  Cross-table reads use `spark.read.table(...)`/`spark.readStream.table(...)`
+  — confirmed against current docs; `dlt.read()`/`dlt.read_stream()` do not
+  exist in the `pyspark.pipelines` module despite being the classic spelling.
+  `abstract_inverted_index` is pinned to `STRING` via `cloudFiles.schemaHints`
+  in bronze specifically because its keys are the abstract's own words (an
+  unbounded vocabulary) — without the hint, Auto Loader's schema inference
+  tries to build one struct field per distinct word ever seen.
+- **`resources/openalex_pipeline.yml`, `resources/openalex_harvest_job.yml`**
+  — the Asset Bundle definitions. The pipeline's `schema:` is a Unity Catalog
+  schema for Delta tables; Lakebase's `research` schema is an unrelated
+  Postgres schema in a different system — same word, don't conflate them.
 
 ## Conventions specific to this project
 

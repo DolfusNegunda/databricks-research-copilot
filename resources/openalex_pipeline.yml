@@ -1,0 +1,26 @@
+# Lakeflow Declarative Pipeline: bronze -> silver -> gold over the harvested
+# OpenAlex corpus. Reads harvester/snowball.py's landed JSON (bronze) and the
+# small landed `topics` snapshot entity, applies dp.expect* quality gates in
+# silver, and produces the citation graph + foundational_score + serving
+# subset in gold. See pipelines/openalex_pipeline.py for the actual logic.
+#
+# Note the two different "schema" concepts in this project, easy to conflate:
+# this file's `schema:` is a Unity Catalog schema for Delta tables
+# (catalog.schema.table). Lakebase's `research` schema (sql/01_schema.sql) is
+# a Postgres schema in a completely different system. Same word, unrelated.
+
+resources:
+  pipelines:
+    openalex_research_pipeline:
+      name: openalex-research-copilot
+      catalog: main
+      schema: research_copilot
+      serverless: true
+      continuous: false  # triggered: re-run after a harvester run, not a 24/7 stream
+      configuration:
+        openalex.harvest_path: /Volumes/main/research_copilot/raw/harvest
+        openalex.topics_dir: /Volumes/main/research_copilot/raw/topics
+        openalex.schema_location: /Volumes/main/research_copilot/raw/_schemas
+      libraries:
+        - file:
+            path: ../pipelines/openalex_pipeline.py

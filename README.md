@@ -52,7 +52,11 @@ rather than imported across the app deployment boundary).
 1. ✅ Corpus strategy — measured, corrected from partition-slicing to
    topic-seeded snowball harvesting (see above).
 2. ✅ Reading-path algorithm + Lakebase schema, offline-verified.
-3. 🔲 Declarative pipeline: bronze → silver → gold, with `dp.expect*` gates.
+3. ✅ Declarative pipeline: bronze → silver → gold, with `dp.expect*` gates
+   (`pipelines/openalex_pipeline.py`). Syntax-verified and hand-checked
+   against current Databricks docs; **not yet run against a real Databricks
+   pipeline** — `spark`/`dp` are runtime-injected and can't be exercised
+   locally. First live pipeline run is the next real proof point.
 4. 🔲 Lakebase batch writer + embeddings.
 5. 🔲 MCP server + Agent Bricks registration.
 6. 🔲 App UI, including the dependency-graph view.
