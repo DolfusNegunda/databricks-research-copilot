@@ -98,9 +98,17 @@ def _short_id(col):
         "run at a time: a schema hint corrects Auto Loader's inference for "
         "that field even against an already-persisted, wrong schema at "
         "SCHEMA_LOCATION, but a Full Refresh alone did not re-infer the "
-        "*un-hinted* fields correctly on this Volume. Cheaper to pin every "
-        "nested field actually used than discover each one from another "
-        "AnalysisException."
+        "*un-hinted* fields correctly on this Volume. A hint also has to be "
+        "COMPLETE, not just correctly typed for the sub-fields we read: "
+        "authorships hinted with only the 3 sub-fields silver_works uses "
+        "made every *other* real sub-field (institutions, affiliations, "
+        "countries, raw_author_name, ...) look like an unknown field to "
+        "Auto Loader's schema evolution, which fails the stream on principle "
+        "-- deliberately, the same way it would for a genuinely new column "
+        "-- rather than silently drop them. schemaEvolutionMode=rescue is "
+        "the safety net for whatever this project's own sampling still "
+        "hasn't hit: unmapped fields land in _rescued_data instead of "
+        "failing the pipeline a third time."
     ),
 )
 def bronze_works_raw():
@@ -113,10 +121,23 @@ def bronze_works_raw():
         "STRUCT<is_oa: BOOLEAN, oa_status: STRING, oa_url: STRING, "
         "any_repository_has_fulltext: BOOLEAN>"
     )
+    _institution = (
+        "STRUCT<id: STRING, display_name: STRING, ror: STRING, "
+        "country_code: STRING, type: STRING, lineage: ARRAY<STRING>>"
+    )
+    _affiliation = "STRUCT<raw_affiliation_string: STRING, institution_ids: ARRAY<STRING>>"
     _authorships = (
-        "ARRAY<STRUCT<author_position: STRING, "
+        "ARRAY<STRUCT<"
+        "author_position: STRING, "
         "author: STRUCT<id: STRING, display_name: STRING, orcid: STRING>, "
-        "is_corresponding: BOOLEAN>>"
+        f"institutions: ARRAY<{_institution}>, "
+        "countries: ARRAY<STRING>, "
+        "is_corresponding: BOOLEAN, "
+        "raw_author_name: STRING, "
+        "raw_affiliation_strings: ARRAY<STRING>, "
+        "raw_orcid: STRING, "
+        f"affiliations: ARRAY<{_affiliation}>"
+        ">>"
     )
     return (
         spark.readStream.format("cloudFiles")  # noqa: F821
@@ -128,6 +149,7 @@ def bronze_works_raw():
             f"primary_topic {_primary_topic}, open_access {_open_access}, "
             f"authorships {_authorships}",
         )
+        .option("cloudFiles.schemaEvolutionMode", "rescue")
         .load(HARVEST_PATH)
         .withColumn("_ingested_at", F.current_timestamp())
         .withColumn("_source", F.lit("api_snowball"))
@@ -159,6 +181,7 @@ def bronze_dim_topics():
             "cloudFiles.schemaHints",
             f"domain {_topic_struct}, field {_topic_struct}, subfield {_topic_struct}",
         )
+        .option("cloudFiles.schemaEvolutionMode", "rescue")
         .load(TOPICS_DIR)
         .withColumn("_ingested_at", F.current_timestamp())
         .withColumn("_source", F.lit("snapshot_dim"))
