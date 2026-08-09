@@ -277,18 +277,31 @@ def silver_authors():
 
 @dp.materialized_view(
     name="silver_paper_authors",
-    comment="work_id/author_id bridge, exploded from authorships, position-ordered.",
+    comment=(
+        "work_id/author_id bridge, exploded from authorships, position-ordered. "
+        "dropDuplicates(work_id, author_id) for the same reason silver_authors "
+        "and silver_citation_edges already have one: real OpenAlex data "
+        "sometimes double-lists the same author in one work's authorships "
+        "array (a raw-data quirk, not a harvester artifact -- confirmed live, "
+        "Postgres's ON CONFLICT (work_id, author_id) can't apply DO UPDATE "
+        "twice to the same pair in one batch, which is exactly what surfaced "
+        "this)."
+    ),
 )
 def silver_paper_authors():
     exploded = spark.read.table("silver_works").select(  # noqa: F821
         F.col("work_id"), F.posexplode(F.col("authorships")).alias("author_position", "a")
     )
-    return exploded.select(
-        F.col("work_id"),
-        _short_id(F.col("a.author.id")).alias("author_id"),
-        F.col("author_position"),
-        F.coalesce(F.col("a.is_corresponding"), F.lit(False)).alias("is_corresponding"),
-    ).where(F.col("author_id").isNotNull())
+    return (
+        exploded.select(
+            F.col("work_id"),
+            _short_id(F.col("a.author.id")).alias("author_id"),
+            F.col("author_position"),
+            F.coalesce(F.col("a.is_corresponding"), F.lit(False)).alias("is_corresponding"),
+        )
+        .where(F.col("author_id").isNotNull())
+        .dropDuplicates(["work_id", "author_id"])
+    )
 
 
 @dp.materialized_view(
