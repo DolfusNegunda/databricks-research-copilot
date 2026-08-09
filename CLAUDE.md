@@ -55,7 +55,7 @@ python scripts/check_api.py    # 50 checks: abstract reconstruction, reading-pat
                                 # ordering, harvester's pure helpers, chunking/vector
                                 # formatting, frontend conventions (no innerHTML, id
                                 # cross-check), run_query() write-safety (ast-parsed)
-python scripts/check_sql.py    # 3 checks: every sql/*.sql statement via pglast
+python scripts/check_sql.py    # 4 checks: every sql/*.sql statement via pglast
 
 # the harvester (needs network; hits the live OpenAlex API)
 python harvester/snowball.py --out-dir ./harvest --per-topic 200

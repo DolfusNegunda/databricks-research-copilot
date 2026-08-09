@@ -17,7 +17,31 @@ BEGIN
 END;
 $ensure_schema$;
 
-CREATE EXTENSION IF NOT EXISTS vector;
+-- Extensions are database-wide, not schema-scoped -- CREATE EXTENSION IF NOT
+-- EXISTS alone silently no-ops the moment ANY project sharing this Lakebase
+-- instance has already installed pgvector into ITS OWN primary schema, which
+-- leaves the `vector` type unresolvable from this schema's search_path even
+-- though the extension technically "exists" (confirmed live: this failed
+-- with "type vector does not exist" on CREATE TABLE, well past the
+-- IF NOT EXISTS that apparently found nothing to do). Check where it
+-- actually lives and adapt instead of assuming it's already reachable.
+DO $ensure_vector_extension$
+DECLARE
+    _vector_schema TEXT;
+BEGIN
+    SELECT extnamespace::regnamespace::text INTO _vector_schema
+    FROM pg_extension WHERE extname = 'vector';
+
+    IF _vector_schema IS NULL THEN
+        CREATE EXTENSION vector SCHEMA public;
+    ELSIF _vector_schema NOT IN ('__SCHEMA_NAME__', 'public') THEN
+        -- Installed by some other project's own bootstrap, into its own
+        -- schema. Don't move or duplicate it -- just widen this session's
+        -- search_path so the type resolves for the rest of this script too.
+        EXECUTE format('SET search_path TO %I, public, %I', '__SCHEMA_NAME__', _vector_schema);
+    END IF;
+END;
+$ensure_vector_extension$;
 
 -- ---------------------------------------------------------------- users ----
 CREATE TABLE IF NOT EXISTS __SCHEMA__.users (
