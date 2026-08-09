@@ -410,13 +410,24 @@ def agent_chat():
         return jsonify(error="message is required"), 400
 
     try:
+        import requests
         from databricks.sdk import WorkspaceClient
 
-        response = WorkspaceClient().serving_endpoints.query(
-            name=AGENT_SERVING_ENDPOINT,
-            inputs=[{"role": "user", "content": message}],
+        # This agent's endpoint is Responses-API-shaped ({"input": [...]}),
+        # which serving_endpoints.query()'s typed parameters (inputs=,
+        # messages=, instances=, ...) don't map onto -- confirmed live, it
+        # 400s asking for "input" specifically. Reuse the SDK purely for its
+        # already-authenticated config and call the endpoint directly with
+        # the exact shape it asked for.
+        cfg = WorkspaceClient().config
+        resp = requests.post(
+            f"{cfg.host}/serving-endpoints/{AGENT_SERVING_ENDPOINT}/invocations",
+            headers=cfg.authenticate(),
+            json={"input": [{"role": "user", "content": message}]},
+            timeout=60,
         )
-        return jsonify(response=response.as_dict())
+        resp.raise_for_status()
+        return jsonify(response=resp.json())
     except Exception as exc:  # noqa: BLE001
         return jsonify(error="agent_call_failed", message=str(exc)), 502
 
