@@ -15,21 +15,58 @@ Cross-table reads inside the pipeline use plain `spark.read.table(...)` /
 `spark.readStream.table(...)` -- confirmed against current Databricks docs,
 not the classic `dlt.read()`/`dlt.read_stream()` some training data would
 suggest; that spelling does not exist in the `pyspark.pipelines` module.
+
+_reconstruct_abstract below is a deliberate duplicate of the root
+abstract_reconstruction.py, not an import of it. A `sys.path.insert` +
+`from abstract_reconstruction import ...` makes the function importable on
+the driver, but F.udf() ships the wrapped function to executors via
+cloudpickle, which pickles an importably-named function *by reference* --
+each executor would need to `import abstract_reconstruction` itself, and
+nothing distributes that file there. Defining the function directly in this
+module sidesteps that: cloudpickle serializes it by value instead. Same
+tradeoff already accepted for app/ and mcp_server/'s copied lakebase.py --
+see CLAUDE.md's "Conventions" section -- keep this in sync with
+abstract_reconstruction.py by hand; scripts/check_api.py tests the canonical
+root copy, not this one.
 """
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+import json
 
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from abstract_reconstruction import reconstruct_abstract  # noqa: E402
 
-reconstruct_abstract_udf = F.udf(reconstruct_abstract, T.StringType())
+def _reconstruct_abstract(inverted_index):  # noqa: ANN001, ANN201
+    if inverted_index is None:
+        return None
+    if isinstance(inverted_index, str):
+        stripped = inverted_index.strip()
+        if not stripped:
+            return None
+        try:
+            inverted_index = json.loads(stripped)
+        except (json.JSONDecodeError, ValueError):
+            return None
+    if not isinstance(inverted_index, dict) or not inverted_index:
+        return None
+    position_to_word = {}
+    for word, positions in inverted_index.items():
+        if not isinstance(positions, (list, tuple)):
+            continue
+        for position in positions:
+            if isinstance(position, int) and position >= 0:
+                position_to_word[position] = word
+    if not position_to_word:
+        return None
+    ordered = [position_to_word[p] for p in sorted(position_to_word)]
+    text = " ".join(ordered).strip()
+    return text or None
+
+
+reconstruct_abstract_udf = F.udf(_reconstruct_abstract, T.StringType())
 
 HARVEST_PATH = spark.conf.get("openalex.harvest_path", "/Volumes/main/research_copilot/raw/harvest")  # noqa: F821
 TOPICS_DIR = spark.conf.get("openalex.topics_dir", "/Volumes/main/research_copilot/raw/topics")  # noqa: F821

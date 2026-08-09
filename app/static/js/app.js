@@ -362,7 +362,7 @@ function renderCollections() {
     title.textContent = c.name;
     const meta = document.createElement("div");
     meta.className = "row__meta";
-    meta.textContent = `${c.paper_count} paper${c.paper_count === "1" ? "" : "s"}`;
+    meta.textContent = `${c.paper_count} paper${Number(c.paper_count) === 1 ? "" : "s"}`;
     row.append(title, meta);
     row.addEventListener("click", () => selectCollection(c.collection_id));
     list.appendChild(row);

@@ -51,9 +51,10 @@ still used — for the *other* 20 entity types (`authors`, `institutions`,
 
 ```bash
 # offline verification -- no network, no Databricks, no live Lakebase
-python scripts/check_api.py    # 48 checks: abstract reconstruction, reading-path
+python scripts/check_api.py    # 50 checks: abstract reconstruction, reading-path
                                 # ordering, harvester's pure helpers, chunking/vector
-                                # formatting, frontend conventions (no innerHTML, id cross-check)
+                                # formatting, frontend conventions (no innerHTML, id
+                                # cross-check), run_query() write-safety (ast-parsed)
 python scripts/check_sql.py    # 3 checks: every sql/*.sql statement via pglast
 
 # the harvester (needs network; hits the live OpenAlex API)
@@ -86,7 +87,9 @@ genuinely offline-safe to import despite needing those packages installed.
   a **JSON string** from Parquet. Handles both; returns `None` (never `""`)
   on anything unusable. This is the single most common way to silently get an
   empty embedding corpus, which is why it has its own dedicated, tested
-  module rather than being an inline lambda in the pipeline.
+  module rather than being an inline lambda in the pipeline. The canonical,
+  `check_api.py`-tested copy — **not** the one the pipeline actually runs, see
+  the `pipelines/openalex_pipeline.py` bullet below for why.
 - **`reading_path.py`** (root) — `build_reading_path()`, the signature
   feature. A topological sort over citation edges restricted to a retrieved
   set, with a deterministic `foundational_score` tie-break and graceful
@@ -120,7 +123,15 @@ genuinely offline-safe to import despite needing those packages installed.
   `abstract_inverted_index` is pinned to `STRING` via `cloudFiles.schemaHints`
   in bronze specifically because its keys are the abstract's own words (an
   unbounded vocabulary) — without the hint, Auto Loader's schema inference
-  tries to build one struct field per distinct word ever seen.
+  tries to build one struct field per distinct word ever seen. Its own
+  `_reconstruct_abstract` is a deliberate copy of the root
+  `abstract_reconstruction.py`, not an import of it: `F.udf()` ships the
+  wrapped function to executors via cloudpickle, which for an importably-named
+  function pickles *by reference* (executors would need to
+  `import abstract_reconstruction` themselves — nothing distributes that root
+  file there); defining it inline makes cloudpickle serialize it *by value*
+  instead, sidestepping the question entirely. `check_api.py` tests the root
+  copy, not this one — keep them in sync by hand.
 - **`resources/openalex_pipeline.yml`, `resources/openalex_harvest_job.yml`,
   `resources/openalex_sync_job.yml`** — the Asset Bundle definitions. The
   pipeline's `schema:` is a Unity Catalog schema for Delta tables; Lakebase's
@@ -164,15 +175,32 @@ genuinely offline-safe to import despite needing those packages installed.
   grid ordered by reading rank rather than a full DAG layered layout; every
   position and edge drawn is still real data, not decorative.
 
+**Known limitation, not a bug: `search_papers`'s HNSW index isn't actually
+used.** Both `app/app.py`'s `/api/search` and `mcp_server/tools.py`'s
+`_SEARCH_PAPERS` dedupe multiple chunks per paper via
+`DISTINCT ON (p.work_id) ... ORDER BY p.work_id, similarity DESC` before the
+outer `ORDER BY similarity DESC LIMIT`. That inner ordering is by `work_id`
+first, not by the `<=>` distance the `idx_paper_embeddings_hnsw` index (see
+`sql/01_schema.sql`) is built to accelerate, so Postgres falls back to a full
+scan + sort rather than an ANN index walk. Correct results, real index,
+neither one exercising the other -- fine at this corpus's scale, but don't
+cite it as evidence the HNSW index does anything here. Fixing it means
+ranking within a `LATERAL` per-paper subquery instead of a flat
+`DISTINCT ON`; not done, since it's a performance property, not a
+correctness one.
+
 ## Conventions specific to this project
 
-- **`abstract_reconstruction.py` and `reading_path.py` live at the repo root**,
-  used directly (imported) by `pipelines/`. `app/` and `mcp_server/` each
-  carry their **own copies** of `reading_path.py`, `lakebase.py`, and
-  `embedder.py` — per the established sibling convention, a Databricks App
-  folder doesn't import across the deployment boundary. Keep these three
-  files in sync by hand across all three locations (root, `app/`,
-  `mcp_server/`) when fixing a bug in one; nothing enforces this
+- **`abstract_reconstruction.py` and `reading_path.py` live at the repo root**
+  as the canonical, `check_api.py`-tested reference implementations — but
+  neither is actually *imported* by anything outside `scripts/check_api.py`.
+  `pipelines/openalex_pipeline.py` carries its own inlined
+  `_reconstruct_abstract` (a `pyspark.sql.functions.udf` cloudpickle
+  constraint, see its bullet above), and `app/`/`mcp_server/` each carry their
+  own copies of `reading_path.py`, `lakebase.py`, and `embedder.py` — per the
+  established sibling convention, a Databricks App folder doesn't import
+  across the deployment boundary. Keep all of these in sync by hand with the
+  root originals when fixing a bug in one; nothing enforces this
   automatically, same tradeoff the sibling projects accepted for their own
   copied-then-diverged CSS.
 - **8 seed topics, not 1.** Multi-topic on purpose: richness of data was an

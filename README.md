@@ -75,10 +75,11 @@ resources/         Databricks Asset Bundle job/pipeline definitions
 scripts/           verification: check_api.py, check_sql.py, check_connection.py
 docs/              Agent Bricks registration steps
 abstract_reconstruction.py, reading_path.py, lakebase.py, embedder.py
-                   shared logic at the repo root, used directly by pipelines/;
-                   duplicated (not imported) into app/ and mcp_server/ -- see
-                   CLAUDE.md for why each Databricks App folder gets its own
-                   copy rather than importing across the deployment boundary
+                   canonical, check_api.py-tested reference copies at the repo
+                   root; duplicated, not imported, everywhere they're actually
+                   used -- inlined in pipelines/ (a UDF/cloudpickle
+                   constraint) and copied into app/ and mcp_server/ (a
+                   deployment-boundary convention) -- see CLAUDE.md for both
 ```
 
 ## Setup
@@ -123,7 +124,7 @@ persist; `save_reading_plan` computes the same thing and writes
 ## Verification
 
 ```bash
-python scripts/check_api.py                 # offline: 48 checks
+python scripts/check_api.py                 # offline: 50 checks
 python scripts/check_sql.py                  # offline: 3 checks, via pglast
 python scripts/check_connection.py           # live: pgvector, schema, dimension via format_type()
 python scripts/check_connection.py --write   # live: + a self-cleaning cosine round trip
@@ -133,9 +134,13 @@ python scripts/check_connection.py --write   # live: + a self-cleaning cosine ro
 OpenAlex's inverted index, in both its dict and JSON-string shapes),
 reading-path correctness (clean DAGs, cycles, disconnected sets, deterministic
 tie-breaks), the harvester's pure helpers, chunking/vector-literal formatting,
-and two frontend conventions checked by scanning `app/`'s source text rather
-than executing it: `app.js` never uses `innerHTML`, and every
-`getElementById` call has a matching element in `index.html`.
+two frontend conventions checked by scanning `app/`'s source text rather than
+executing it (`app.js` never uses `innerHTML`, and every `getElementById`
+call has a matching element in `index.html`), and one Lakebase write-safety
+convention checked the same way: parsing `mcp_server/tools.py` and
+`app/app.py` with `ast` to confirm no SQL containing `INSERT`/`UPDATE`/
+`DELETE` is ever passed to `run_query()`, which never commits (see
+`lakebase.py`).
 
 ## What's verified vs. what isn't
 
