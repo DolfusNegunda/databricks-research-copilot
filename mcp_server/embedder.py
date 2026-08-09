@@ -13,7 +13,7 @@ import threading
 
 MODEL_NAME = os.environ.get("EMBEDDING_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
 EMBEDDING_DIM = int(os.environ.get("EMBEDDING_DIM", "384"))
-CHUNK_SIZE = int(os.environ.get("EMBEDDING_CHUNK_SIZE", "800"))
+CHUNK_SIZE = int(os.environ.get("EMBEDDING_CHUNK_SIZE", "1500"))
 CHUNK_OVERLAP = int(os.environ.get("EMBEDDING_CHUNK_OVERLAP", "100"))
 
 _BATCH_SIZE = 32
