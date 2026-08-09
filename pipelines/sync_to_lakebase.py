@@ -18,7 +18,14 @@ synced or changed paper sits with embedded_at IS NULL until that job runs;
 see _UPSERT_PAPERS below for exactly when embedded_at gets cleared.
 
 `spark` is runtime-injected in a Databricks notebook/job context; this file
-is not run with a plain `python` interpreter.
+is not run with a plain `python` interpreter. Specifically, it runs via
+exec(compile(source, filename, 'exec')) inside an IPython kernel -- __file__
+is never injected into that exec'd namespace, unlike a real `python
+script.py` invocation, so the sys.path.insert(Path(__file__)...) trick every
+other copy of lakebase.py's importers use NameErrors here. Fixed by giving
+this directory its own copy of lakebase.py (see its docstring) instead of
+reaching across to the root one -- a plain `import lakebase` needs no path
+computation at all.
 
 Table names below are fully qualified (catalog.schema.table), not the bare
 names openalex_pipeline.py's own @dp.table/@dp.materialized_view defs use --
@@ -32,13 +39,10 @@ that automatically.
 from __future__ import annotations
 
 import json
-import sys
-from pathlib import Path
 
 from psycopg2.extras import execute_values
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import lakebase  # noqa: E402
+import lakebase
 
 CATALOG = "rise_of_ai_de"
 SCHEMA = "research_copilot"

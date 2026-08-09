@@ -217,13 +217,22 @@ correctness one.
   neither is actually *imported* by anything outside `scripts/check_api.py`.
   `pipelines/openalex_pipeline.py` carries its own inlined
   `_reconstruct_abstract` (a `pyspark.sql.functions.udf` cloudpickle
-  constraint, see its bullet above), and `app/`/`mcp_server/` each carry their
-  own copies of `reading_path.py`, `lakebase.py`, and `embedder.py` — per the
-  established sibling convention, a Databricks App folder doesn't import
-  across the deployment boundary. Keep all of these in sync by hand with the
-  root originals when fixing a bug in one; nothing enforces this
-  automatically, same tradeoff the sibling projects accepted for their own
-  copied-then-diverged CSS.
+  constraint, see its bullet above). `lakebase.py`/`embedder.py` specifically
+  are duplicated in **four** places now (root, `app/`, `mcp_server/`,
+  `pipelines/`), for **two different reasons**: `app/`/`mcp_server/` can't
+  import across their own deployment boundary, same as every sibling
+  project's Databricks Apps; `pipelines/` needs its own copies for an
+  unrelated reason found live — `sync_to_lakebase.py`/`embed_papers.py` run
+  as a `spark_python_task` via `exec(compile(source, filename, 'exec'))`
+  inside an IPython kernel, which never injects `__file__` into that exec'd
+  namespace, so the root copies' `sys.path.insert(Path(__file__)...)` import
+  trick `NameError`s before either import runs. A same-directory
+  `import lakebase` needs no path computation at all, which is why the fix
+  is a copy, not a patched path. `pipelines/` does not need its own copy of
+  `reading_path.py` — nothing in `pipelines/` imports it. Keep all of these
+  in sync by hand with the root originals when fixing a bug in one; nothing
+  enforces this automatically, same tradeoff the sibling projects accepted
+  for their own copied-then-diverged CSS.
 - **8 seed topics, not 1.** Multi-topic on purpose: richness of data was an
   explicit goal, and it means the demo app supports several distinct,
   realistic learning goals instead of one. See `SEED_TOPICS` in

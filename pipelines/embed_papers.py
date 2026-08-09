@@ -7,6 +7,15 @@ Pure Python + psycopg2 + sentence-transformers -- no Spark, unlike
 sync_to_lakebase.py. Safe to run as a plain Databricks Job task, a notebook,
 or by hand: `python pipelines/embed_papers.py`.
 
+Imports embedder/lakebase from this same directory (pipelines/embedder.py,
+pipelines/lakebase.py), not the root copies -- a spark_python_task runs this
+file via exec(compile(source, filename, 'exec')) inside an IPython kernel,
+which never injects __file__ into the exec'd namespace, so the
+sys.path.insert(Path(__file__)...) trick every other copy's importer uses
+NameErrors here before either import runs. A plain `import embedder` needs
+no path computation, and Python already puts a script's own directory on
+sys.path for the by-hand `python pipelines/embed_papers.py` case too.
+
 Chunks are deleted and reinserted per paper rather than upserted by
 chunk_index alone, so a paper whose new chunk count is *smaller* than its
 last embedding (only possible if EMBEDDING_CHUNK_SIZE/OVERLAP changed between
@@ -15,14 +24,10 @@ runs) can't leave stale higher-numbered chunks behind.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 from psycopg2.extras import execute_values
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import embedder  # noqa: E402
-import lakebase  # noqa: E402
+import embedder
+import lakebase
 
 _FETCH_BATCH = 200
 
