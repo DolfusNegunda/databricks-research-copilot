@@ -38,7 +38,6 @@ from urllib.parse import unquote, urlparse
 import psycopg2
 import psycopg2.pool
 from psycopg2.extras import RealDictCursor
-from sqlalchemy import create_engine
 
 log = logging.getLogger("research_copilot.lakebase")
 
@@ -335,7 +334,14 @@ def _ensure_schema_exists(conn) -> None:  # noqa: ANN001
 
 def get_engine():
     """A SQLAlchemy engine, for code that prefers it. Not used for pooling
-    here -- get_connection()'s pool is the one every helper below shares."""
+    here -- get_connection()'s pool is the one every helper below shares.
+    Nothing in this project actually calls this; sqlalchemy is imported here,
+    lazily, rather than at module top level, specifically so a caller that
+    only needs get_connection()/run_query()/run_write() -- e.g. a Databricks
+    Job task whose serverless environment never declared SQLAlchemy as a
+    dependency, confirmed live -- doesn't need it installed at all."""
+    from sqlalchemy import create_engine
+
     dsn = _dsn()
     if not dsn:
         raise LakebaseUnavailable("Lakebase is not configured.")

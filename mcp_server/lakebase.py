@@ -38,7 +38,6 @@ from urllib.parse import unquote, urlparse
 import psycopg2
 import psycopg2.pool
 from psycopg2.extras import RealDictCursor
-from sqlalchemy import create_engine
 
 log = logging.getLogger("research_copilot.lakebase")
 
@@ -283,6 +282,8 @@ def _ensure_schema_exists(conn) -> None:  # noqa: ANN001
 
 
 def get_engine():
+    from sqlalchemy import create_engine
+
     dsn = _dsn()
     if not dsn:
         raise LakebaseUnavailable("Lakebase is not configured.")
