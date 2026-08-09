@@ -292,6 +292,51 @@ def dispose_pool() -> None:
         _pool = None
 
 
+_vector_extension_schema: str | None = None
+_vector_extension_checked = False
+_vector_extension_lock = threading.Lock()
+
+
+def _resolve_vector_extension_schema(conn) -> str | None:  # noqa: ANN001
+    """Where pgvector's `vector` type actually lives, if that's somewhere
+    other than LAKEBASE_SCHEMA/public -- resolved once per process, cached,
+    not once per checkout.
+
+    Extensions are database-wide, not schema-scoped: on this shared Lakebase
+    instance, a different project's own bootstrap may have already installed
+    pgvector into ITS OWN primary schema before this project ever ran
+    (confirmed live -- CREATE EXTENSION IF NOT EXISTS silently no-ops the
+    moment it exists anywhere at all, leaving the type unresolvable from a
+    search_path that doesn't include wherever it actually landed). Every
+    schema-bootstrap run (ensure_research_schema) widens search_path for the
+    duration of its own connection only -- SET is session-scoped, and this
+    same get_connection() resets search_path to the plain two-schema form on
+    every checkout, by design, so that widening never survives past the one
+    call that did it. embed_papers.py never calls ensure_research_schema()
+    at all (confirmed live: it never needed to, until it needed `::vector`)
+    -- every caller needs the same widening applied on its own checkouts.
+    """
+    global _vector_extension_schema, _vector_extension_checked
+    if _vector_extension_checked:
+        return _vector_extension_schema
+    with _vector_extension_lock:
+        if _vector_extension_checked:
+            return _vector_extension_schema
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT extnamespace::regnamespace::text AS schema_name "
+                    "FROM pg_extension WHERE extname = 'vector'"
+                )
+                row = cur.fetchone()
+        except Exception:  # noqa: BLE001 -- never let this block a normal checkout
+            row = None
+        schema = row["schema_name"] if row else None
+        _vector_extension_schema = schema if schema not in (None, LAKEBASE_SCHEMA, "public") else None
+        _vector_extension_checked = True
+        return _vector_extension_schema
+
+
 @contextmanager
 def get_connection():
     """Yield a pooled psycopg2 connection with a RealDictCursor factory,
@@ -305,7 +350,9 @@ def get_connection():
     proxy that reserves `options` for its own endpoint routing and silently
     drops it, so a search_path set that way never takes effect and every
     unqualified query then fails with "relation does not exist" even though
-    the table is right there.
+    the table is right there. The search_path also includes wherever pgvector
+    actually lives (see _resolve_vector_extension_schema) whenever that's
+    not already LAKEBASE_SCHEMA/public.
 
     On any exception the connection is discarded rather than returned to the
     pool -- a connection that failed mid-transaction may be in an unknown
@@ -316,8 +363,12 @@ def get_connection():
     conn = pool.getconn()
     broken = False
     try:
+        extra_schema = _resolve_vector_extension_schema(conn)
+        search_path = f'"{LAKEBASE_SCHEMA}", public'
+        if extra_schema:
+            search_path += f', "{extra_schema}"'
         with conn.cursor() as cur:
-            cur.execute(f'SET search_path TO "{LAKEBASE_SCHEMA}", public')
+            cur.execute(f"SET search_path TO {search_path}")
         yield conn
     except Exception:
         broken = True

@@ -173,6 +173,22 @@ genuinely offline-safe to import despite needing those packages installed.
   all four copies and asserts the rendered SQL text is placeholder-free and
   actually references `LAKEBASE_SCHEMA` — this offline check would have
   caught it without ever touching a live database.
+- **pgvector's `vector` type is not guaranteed to be on `search_path` just
+  because the extension "exists".** Extensions are database-wide, not
+  schema-scoped: on this shared Lakebase instance, some other bootcamp
+  project's own bootstrap may have already installed pgvector into ITS OWN
+  primary schema, so `CREATE EXTENSION IF NOT EXISTS vector` in
+  `sql/01_schema.sql` silently no-ops (it already exists, just not
+  somewhere this project's `search_path` reaches) — confirmed live, twice:
+  once inside `ensure_research_schema()`'s own bootstrap, and again inside
+  `embed_papers.py`, which never calls `ensure_research_schema()` at all
+  and went straight to a `::vector` insert. `get_connection()` in every
+  copy of `lakebase.py` now resolves this once per process
+  (`_resolve_vector_extension_schema`, cached, never re-queried) and adds
+  the extension's real schema to `search_path` on every checkout if it
+  isn't already `LAKEBASE_SCHEMA`/`public` — fixed at the one function
+  every caller already goes through, not by remembering to bootstrap
+  first at each new call site.
 - **`embedder.py`** — chunking + embedding, same shape as the weather-rag
   sibling's. Only module that imports `sentence_transformers`, only lazily
   inside `get_model()`.

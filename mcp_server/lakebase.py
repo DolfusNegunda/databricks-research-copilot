@@ -250,17 +250,55 @@ def dispose_pool() -> None:
         _pool = None
 
 
+_vector_extension_schema: str | None = None
+_vector_extension_checked = False
+_vector_extension_lock = threading.Lock()
+
+
+def _resolve_vector_extension_schema(conn) -> str | None:  # noqa: ANN001
+    """Where pgvector's `vector` type actually lives, if not LAKEBASE_SCHEMA/
+    public -- resolved once per process, cached. Extensions are database-wide;
+    on this shared Lakebase instance another project's bootstrap may have
+    already installed pgvector into ITS OWN schema, which leaves the type
+    unresolvable from search_paths that don't include it (confirmed live)."""
+    global _vector_extension_schema, _vector_extension_checked
+    if _vector_extension_checked:
+        return _vector_extension_schema
+    with _vector_extension_lock:
+        if _vector_extension_checked:
+            return _vector_extension_schema
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT extnamespace::regnamespace::text AS schema_name "
+                    "FROM pg_extension WHERE extname = 'vector'"
+                )
+                row = cur.fetchone()
+        except Exception:  # noqa: BLE001
+            row = None
+        schema = row["schema_name"] if row else None
+        _vector_extension_schema = schema if schema not in (None, LAKEBASE_SCHEMA, "public") else None
+        _vector_extension_checked = True
+        return _vector_extension_schema
+
+
 @contextmanager
 def get_connection():
     """Yield a pooled psycopg2 connection with a RealDictCursor factory,
     already pointed at LAKEBASE_SCHEMA via SET search_path (never libpq
-    `options`, which Lakebase's proxy silently drops)."""
+    `options`, which Lakebase's proxy silently drops) -- plus wherever
+    pgvector actually lives, if that's somewhere else on this shared
+    instance (see _resolve_vector_extension_schema)."""
     pool = _get_pool()
     conn = pool.getconn()
     broken = False
     try:
+        extra_schema = _resolve_vector_extension_schema(conn)
+        search_path = f'"{LAKEBASE_SCHEMA}", public'
+        if extra_schema:
+            search_path += f', "{extra_schema}"'
         with conn.cursor() as cur:
-            cur.execute(f'SET search_path TO "{LAKEBASE_SCHEMA}", public')
+            cur.execute(f"SET search_path TO {search_path}")
         yield conn
     except Exception:
         broken = True
