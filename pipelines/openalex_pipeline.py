@@ -194,6 +194,7 @@ def bronze_dim_topics():
 
 _SILVER_WORKS_GATES = {
     "valid_id": "work_id IS NOT NULL",
+    "has_title": "title IS NOT NULL AND length(trim(title)) > 0",
     "has_abstract": "narrative_abstract IS NOT NULL AND length(narrative_abstract) > 100",
     "plausible_year": "publication_year IS NULL OR publication_year BETWEEN 1800 AND year(current_date()) + 1",
 }
