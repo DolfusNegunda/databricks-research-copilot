@@ -11,10 +11,15 @@ git identity, deploy sequence, the `search_path`/`options` Lakebase
 constraint, the three-script verification pattern). This file covers only
 what's specific to this project.
 
-**Status: early build.** Read this alongside the plan file (ask the user for
-its path if not obvious from context) before assuming anything about pieces
-not yet listed below as done — `app/` and `mcp_server/` are empty folders
-right now, not partially-built apps.
+**Status: feature-complete, not live-verified.** Every piece in the build
+order is written: harvester, declarative pipeline, Lakebase schema + writer +
+embedding, the MCP server (`mcp_server/`), and the Flask app (`app/`). What's
+missing is a live run against a real Databricks workspace/Lakebase instance —
+this was built in a sandbox with no Spark runtime and no provisioned
+Lakebase, so verification stops at: offline checks (green), import-level
+construction of both `FastMCP`/`Flask` apps (real, not just syntax-checked),
+and hand-review against current API docs. See README.md's "what's verified
+vs. what isn't" section before assuming anything beyond that has been proven.
 
 ## The corpus-density finding — the reason this project is shaped the way it is
 
@@ -45,18 +50,33 @@ still used — for the *other* 20 entity types (`authors`, `institutions`,
 ## Commands (what exists so far)
 
 ```bash
-# offline verification -- no network, no Databricks, no Lakebase
-python scripts/check_api.py    # 36 checks: abstract reconstruction, reading-path
-                                # ordering, harvester's pure helpers
+# offline verification -- no network, no Databricks, no live Lakebase
+python scripts/check_api.py    # 48 checks: abstract reconstruction, reading-path
+                                # ordering, harvester's pure helpers, chunking/vector
+                                # formatting, frontend conventions (no innerHTML, id cross-check)
 python scripts/check_sql.py    # 3 checks: every sql/*.sql statement via pglast
 
 # the harvester (needs network; hits the live OpenAlex API)
 python harvester/snowball.py --out-dir ./harvest --per-topic 200
+python harvester/land_topics.py --out ./harvest/topics/topics.jsonl
+
+# live, needs Lakebase configured (env.example)
+python scripts/check_connection.py           # read-only: pgvector, schema, dimension
+python scripts/check_connection.py --write   # + a self-cleaning cosine round trip
+
+# run either app locally (needs Lakebase configured; each has its own copy
+# of lakebase.py/embedder.py/reading_path.py, see "Conventions" below)
+cd app && python app.py            # http://localhost:8000
+cd mcp_server && python main.py    # http://localhost:8000/mcp (or DATABRICKS_APP_PORT)
 ```
 
-`scripts/check_connection.py` (live, against Lakebase) does not exist yet —
-add it when `sql/01_schema.sql` is first applied to a real instance, mirroring
-the sibling projects' version of that script.
+`lakebase.py`/`embedder.py` import psycopg2/SQLAlchemy/sentence-transformers
+(the last one lazily) -- installed via the root `requirements.txt` for local
+dev, and per-task via `resources/openalex_sync_job.yml`'s `libraries:` blocks
+for the Databricks Job path. `scripts/check_api.py` importing `embedder` does
+**not** load the model (lazy singleton, see `embedder.get_model()`); importing
+`lakebase` does **not** open a connection (pool is lazy too) -- both stay
+genuinely offline-safe to import despite needing those packages installed.
 
 ## Architecture (as built so far)
 
@@ -101,24 +121,63 @@ the sibling projects' version of that script.
   in bronze specifically because its keys are the abstract's own words (an
   unbounded vocabulary) — without the hint, Auto Loader's schema inference
   tries to build one struct field per distinct word ever seen.
-- **`resources/openalex_pipeline.yml`, `resources/openalex_harvest_job.yml`**
-  — the Asset Bundle definitions. The pipeline's `schema:` is a Unity Catalog
-  schema for Delta tables; Lakebase's `research` schema is an unrelated
-  Postgres schema in a different system — same word, don't conflate them.
+- **`resources/openalex_pipeline.yml`, `resources/openalex_harvest_job.yml`,
+  `resources/openalex_sync_job.yml`** — the Asset Bundle definitions. The
+  pipeline's `schema:` is a Unity Catalog schema for Delta tables; Lakebase's
+  `research` schema is an unrelated Postgres schema in a different system —
+  same word, don't conflate them.
+- **`lakebase.py`** — connection helper, mirroring the sibling projects'
+  proven shape exactly (pooled `ThreadedConnectionPool`, three-path auth,
+  `SET search_path` per checkout never libpq `options`, `pg_namespace` guard
+  before `CREATE SCHEMA`). `ensure_research_schema(embedding_dim=384)`
+  substitutes `{{EMBEDDING_DIM}}` into `sql/01_schema.sql`.
+- **`embedder.py`** — chunking + embedding, same shape as the weather-rag
+  sibling's. Only module that imports `sentence_transformers`, only lazily
+  inside `get_model()`.
+- **`pipelines/sync_to_lakebase.py`** — gold/silver Delta → Lakebase via
+  psycopg2 `execute_values`, in FK order (papers → authors → paper_authors /
+  citation_edges). Clears `papers.embedded_at` only when
+  `narrative_abstract` actually changed, compared inline against the
+  pre-update row inside the same `ON CONFLICT DO UPDATE` — no separate
+  content-hash column needed for that comparison.
+- **`pipelines/embed_papers.py`** — deliberately separate from sync (same
+  reason as the weather-rag sibling: sync is cheap, embedding loads a real
+  model). Batches the model's `encode()` call across every paper fetched in
+  one round, not one call per paper. Deletes a paper's existing chunks before
+  reinserting, so a shrinking chunk count can't leave stale rows behind.
+- **`mcp_server/`** — FastMCP app. Structure verified against Databricks' own
+  official template (`databricks/app-templates/mcp-server-hello-world`), not
+  assumed from the bootcamp lab: `FastMCP(...).http_app(stateless_http=True)`
+  combined with a plain FastAPI app into one `combined_app`, identity captured
+  by a `@combined_app.middleware("http")` function into a `ContextVar`
+  (`identity.py`) — not a `BaseHTTPMiddleware` subclass, and not
+  `mcp.run(transport="http", ...)`, both of which are the older pattern the
+  lab uses. 14 tools in `tools.py` (7 read, 7 write); every write tool calls
+  `identity.current_user_email()` rather than accepting a user id as an
+  argument — an agent could otherwise write data as any user it chose to name.
+- **`app/`** — Flask UI. `app.py` reads `x-forwarded-email` directly per
+  request (no ContextVar needed — Flask's request context is already
+  request-scoped). `static/css/app.css` is the sibling design system's base
+  copied verbatim through the scrollbar section, with this project's own
+  additions below the "research copilot page" comment — the dependency-graph
+  SVG view (`static/js/app.js`'s `buildGraph()`) lays out nodes in a wrapping
+  grid ordered by reading rank rather than a full DAG layered layout; every
+  position and edge drawn is still real data, not decorative.
 
 ## Conventions specific to this project
 
 - **`abstract_reconstruction.py` and `reading_path.py` live at the repo root**,
-  not nested under `pipelines/`, because both are shared across deploy
-  boundaries: the pipeline needs `reconstruct_abstract` as a silver-layer
-  transform, and the MCP server / app both need `build_reading_path` at
-  request time. Per the established sibling convention, each Databricks App
-  folder gets its own copy at deploy time rather than importing across the
-  app boundary — do this when `app/` and `mcp_server/` are actually built,
-  don't import from the root at runtime from inside either app folder.
-- **8 seed topics, not 1.** Multi-topic on purpose: it's more data (LinkedIn
-  "rich in data" goal), and it means the demo app can support several
-  distinct, realistic learning goals instead of one. See `SEED_TOPICS` in
+  used directly (imported) by `pipelines/`. `app/` and `mcp_server/` each
+  carry their **own copies** of `reading_path.py`, `lakebase.py`, and
+  `embedder.py` — per the established sibling convention, a Databricks App
+  folder doesn't import across the deployment boundary. Keep these three
+  files in sync by hand across all three locations (root, `app/`,
+  `mcp_server/`) when fixing a bug in one; nothing enforces this
+  automatically, same tradeoff the sibling projects accepted for their own
+  copied-then-diverged CSS.
+- **8 seed topics, not 1.** Multi-topic on purpose: richness of data was an
+  explicit goal, and it means the demo app supports several distinct,
+  realistic learning goals instead of one. See `SEED_TOPICS` in
   `harvester/snowball.py` for the list and why each was picked.
 - **`harvester/` has no `requirements.txt`.** It only uses the stdlib
   (`urllib`, `json`, `argparse`) — deliberately, so it has nothing to install

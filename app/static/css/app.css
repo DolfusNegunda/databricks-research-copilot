@@ -1,0 +1,341 @@
+/* ==========================================================================
+   Research Copilot -- design system
+
+   Base (variables through the scrollbar section) is the same design system
+   used across this bootcamp's sibling apps -- see the workspace root
+   CLAUDE.md: "one design system, copied then diverged." The palette comes
+   from the product mark: a warm near-black ground, a cream hub, teal for
+   read/connected, orange for attention/unread. Everything from the "research
+   copilot page" comment down is specific to this app.
+   ========================================================================== */
+
+:root {
+  /* ground */
+  --ink-900: #131108;
+  --ink-850: #16140f;
+  --ink-800: #1a1813;
+  --ink-750: #1f1c16;
+  --ink-700: #24211a;
+  --ink-650: #2b271f;
+  --ink-600: #332f25;
+  --ink-500: #413c2f;
+
+  /* ink on ground */
+  --cream:   #f2efe9;
+  --tan-100: #ded7c8;
+  --tan-300: #b8ae99;
+  --tan-500: #9c917c;
+  --tan-700: #6f6757;
+
+  /* accents */
+  --teal-700: #226058;
+  --teal-600: #2f7a70;
+  --teal-500: #3e9a8d;
+  --teal-400: #5cbcac;
+  --orange-600: #a8471f;
+  --orange-500: #c8562b;
+  --orange-400: #e07a4a;
+  --gold-600: #ab7420;
+  --gold-500: #d9962b;
+  --gold-400: #eab553;
+  --red-500: #c4463a;
+
+  /* structure */
+  --grid: #201d17;
+  --line: #2b271f;
+  --line-strong: #3a352a;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow: 0 10px 30px -12px rgb(0 0 0 / 0.7);
+  --shadow-lg: 0 30px 70px -20px rgb(0 0 0 / 0.85);
+
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+          "Liberation Mono", monospace;
+
+  --topbar-h: 60px;
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+
+  color-scheme: dark;
+}
+
+/* --------------------------------------------------------------- base ---- */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* The hidden attribute has to beat every component's own display rule --
+   without this, an author rule setting display wins over the UA stylesheet
+   and leaves "hidden" elements on screen. Do not remove it. */
+[hidden] { display: none !important; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--cream);
+  background: var(--ink-800);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 64px 64px, 64px 64px;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, p, ul, figure { margin: 0; }
+ul { padding: 0; list-style: none; }
+button, input, select, textarea { font: inherit; color: inherit; }
+
+::selection { background: var(--teal-600); color: var(--cream); }
+
+*:focus-visible {
+  outline: 2px solid var(--teal-400);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* --------------------------------------------------------------- shell ---- */
+.app { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+
+.topbar {
+  flex: none;
+  height: var(--topbar-h);
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 18px;
+  background: color-mix(in srgb, var(--ink-850) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+  z-index: 20;
+}
+
+.brand { display: flex; align-items: center; gap: 11px; text-decoration: none; color: inherit;
+         padding: 4px 6px 4px 2px; border-radius: var(--radius); }
+.brand:hover { background: var(--ink-750); }
+.brand__mark { display: block; }
+.brand__text { display: flex; flex-direction: column; line-height: 1.15; }
+.brand__name { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
+.brand__sub { font-size: 11px; color: var(--tan-500); letter-spacing: 0.02em; }
+
+.topbar__spacer { flex: 1 1 auto; }
+
+.tabs { display: flex; gap: 4px; }
+.tab {
+  height: 34px; padding: 0 13px;
+  display: inline-flex; align-items: center;
+  border: 0; border-radius: var(--radius);
+  background: transparent; color: var(--tan-500);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.tab:hover { background: var(--ink-750); color: var(--cream); }
+.tab.is-active { background: var(--ink-750); color: var(--cream); }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 30px; padding: 0 11px;
+  border-radius: 999px; border: 1px solid var(--line-strong);
+  background: var(--ink-750); color: var(--tan-300);
+  font-size: 12px; font-weight: 550; white-space: nowrap;
+}
+.chip--user { background: transparent; border-color: transparent; color: var(--tan-500); max-width: 260px; }
+.chip--user .chip__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* -------------------------------------------------------------- banner ---- */
+.banner {
+  flex: none; display: flex; align-items: center; gap: 12px;
+  margin: 12px 18px 0; padding: 11px 12px 11px 0;
+  border: 1px solid var(--orange-600); border-radius: var(--radius);
+  background: color-mix(in srgb, var(--orange-600) 14%, var(--ink-750));
+  overflow: hidden;
+}
+.banner__bar { width: 3px; align-self: stretch; background: var(--orange-500); flex: none; }
+.banner__body { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; gap: 3px 8px; }
+.banner__title { font-size: 13px; font-weight: 650; color: var(--orange-400); }
+.banner__text { font-size: 13px; color: var(--tan-100); overflow-wrap: anywhere; }
+
+/* ------------------------------------------------------------- toolbar ---- */
+.toolbar { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 14px 18px; }
+
+.search { position: relative; flex: 1 1 240px; max-width: 460px; display: flex; align-items: center; }
+.search__input {
+  width: 100%; height: 34px; padding: 0 12px;
+  border: 1px solid var(--line-strong); border-radius: var(--radius);
+  background: var(--ink-750); font-size: 13px;
+}
+.search__input::placeholder { color: var(--tan-700); }
+.search__input:focus { border-color: var(--teal-600); outline: none; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.fchip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 10px;
+  border: 1px solid var(--line-strong); border-radius: 999px;
+  background: transparent; color: var(--tan-300);
+  font-size: 12.5px; font-weight: 550; cursor: pointer;
+  transition: background 120ms var(--ease), border-color 120ms var(--ease);
+}
+.fchip:hover { background: var(--ink-750); color: var(--cream); }
+.fchip.is-active { background: color-mix(in srgb, var(--teal-600) 22%, var(--ink-750)); border-color: var(--teal-600); color: var(--cream); }
+
+.select { display: inline-flex; align-items: center; gap: 7px; }
+select, .search__input, input[type="text"], input[type="search"], textarea {
+  background: var(--ink-750); border: 1px solid var(--line-strong); border-radius: var(--radius); color: var(--cream);
+}
+select { height: 34px; padding: 0 26px 0 10px; font-size: 13px; cursor: pointer; appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--tan-500) 50%), linear-gradient(135deg, var(--tan-500) 50%, transparent 50%);
+  background-position: calc(100% - 14px) 15px, calc(100% - 9px) 15px; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+select:focus { border-color: var(--teal-600); outline: none; }
+
+.toolbar__actions { display: flex; gap: 8px; margin-left: auto; }
+
+/* ------------------------------------------------------------- buttons ---- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  height: 34px; padding: 0 14px; border-radius: var(--radius); border: 1px solid transparent;
+  font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  transition: background 120ms var(--ease), border-color 120ms var(--ease), opacity 120ms var(--ease);
+}
+.btn--sm { height: 30px; padding: 0 11px; font-size: 12.5px; }
+.btn--primary { background: var(--teal-600); color: var(--cream); border-color: color-mix(in srgb, var(--teal-400) 40%, transparent); }
+.btn--primary:hover:not(:disabled) { background: var(--teal-500); }
+.btn--ghost { background: var(--ink-750); color: var(--tan-100); border-color: var(--line-strong); }
+.btn--ghost:hover:not(:disabled) { background: var(--ink-700); color: var(--cream); }
+.btn--quiet { background: transparent; color: var(--tan-500); }
+.btn--quiet:hover:not(:disabled) { background: var(--ink-750); color: var(--cream); }
+.btn--danger { background: color-mix(in srgb, var(--red-500) 18%, var(--ink-750)); color: var(--orange-400); border-color: color-mix(in srgb, var(--red-500) 45%, transparent); }
+.btn--danger:hover:not(:disabled) { background: var(--red-500); color: var(--cream); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* -------------------------------------------------------------- layout ---- */
+.layout { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 12px; padding: 0 18px 18px; }
+
+.pane { display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--line); border-radius: var(--radius-lg);
+        background: color-mix(in srgb, var(--ink-850) 92%, transparent); overflow: hidden; }
+.pane__head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 14px;
+              border-bottom: 1px solid var(--line); background: var(--ink-800); }
+.pane__title { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tan-500); }
+.pane__count { font-family: var(--mono); font-size: 11.5px; color: var(--tan-700); }
+.pane__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+
+/* ---------------------------------------------------------------- rows ---- */
+.rows { display: flex; flex-direction: column; }
+.row { display: flex; flex-direction: column; gap: 3px; padding: 11px 14px; border-bottom: 1px solid var(--line);
+       cursor: pointer; position: relative; transition: background 110ms var(--ease); }
+.row::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 2px; background: transparent; }
+.row:hover { background: var(--ink-800); }
+.row.is-selected { background: var(--ink-750); }
+.row.is-selected::before { background: var(--teal-500); }
+.row__title { font-size: 13.5px; font-weight: 600; color: var(--cream); }
+.row__meta { font-size: 12px; color: var(--tan-500); }
+
+.badge { display: inline-flex; align-items: center; height: 17px; padding: 0 6px; border-radius: var(--radius-sm);
+         font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+.badge--oa { background: color-mix(in srgb, var(--teal-500) 16%, transparent); color: var(--teal-400); }
+.badge--seed { background: color-mix(in srgb, var(--tan-500) 18%, transparent); color: var(--tan-300); }
+.badge--cycle { background: color-mix(in srgb, var(--gold-500) 22%, transparent); color: var(--gold-400); }
+
+/* --------------------------------------------------- empty / skeleton ---- */
+.empty { display: flex; flex-direction: column; align-items: center; gap: 9px; padding: 46px 26px; text-align: center; }
+.empty__title { font-size: 15px; font-weight: 650; }
+.empty__text { font-size: 13px; color: var(--tan-500); max-width: 40ch; }
+
+/* -------------------------------------------------------------- detail ---- */
+.pane--detail { overflow: hidden; }
+.detail__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 12px; }
+
+/* ---------------------------------------------------------------- card ---- */
+.card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--ink-800); padding: 13px 14px 14px; }
+.card__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.card__title { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tan-500); }
+.card__empty { font-size: 12.5px; color: var(--tan-700); padding: 10px 2px 2px; }
+
+/* --------------------------------------------------------------- forms ---- */
+.form { display: flex; flex-direction: column; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field__label { font-size: 11px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tan-500); }
+input[type="text"], input[type="search"], textarea { height: 34px; padding: 0 11px; font-size: 13px; }
+textarea { height: auto; padding: 9px 11px; resize: vertical; line-height: 1.5; }
+input::placeholder, textarea::placeholder { color: var(--tan-700); }
+input:focus, textarea:focus { border-color: var(--teal-600); outline: none; }
+
+/* -------------------------------------------------------------- toasts ---- */
+.toasts { position: fixed; right: 18px; bottom: 18px; z-index: 80; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; pointer-events: none; }
+.toast { display: flex; align-items: center; gap: 9px; max-width: 380px; padding: 10px 13px; border: 1px solid var(--line-strong);
+         border-radius: var(--radius); background: var(--ink-700); box-shadow: var(--shadow); font-size: 13px; pointer-events: auto; }
+.toast__dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--teal-400); }
+.toast--error .toast__dot { background: var(--orange-400); }
+
+/* --------------------------------------------------------------- scroll ---- */
+.pane__scroll::-webkit-scrollbar, .detail__scroll::-webkit-scrollbar { width: 10px; }
+.pane__scroll::-webkit-scrollbar-thumb, .detail__scroll::-webkit-scrollbar-thumb {
+  background: var(--ink-600); border-radius: 999px; border: 3px solid transparent; background-clip: content-box;
+}
+
+@media (max-width: 1000px) {
+  .layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(220px, 40vh) minmax(320px, 1fr); }
+}
+
+/* ================================================== research copilot page ==
+   Everything below is specific to this app: search results, collections
+   sidebar, paper detail, and the citation dependency-graph SVG view (the
+   screenshot this project is built to produce). */
+
+.stack { display: flex; flex-direction: column; gap: 12px; min-height: 0; height: 100%; }
+.stack .pane { flex: 1 1 auto; min-height: 0; }
+.stack .pane--fixed { flex: none; max-height: 40%; }
+
+.paper-card { border-bottom: 1px solid var(--line); padding: 12px 14px; cursor: pointer; }
+.paper-card:hover { background: var(--ink-800); }
+.paper-card__title { font-size: 13.5px; font-weight: 650; color: var(--cream); }
+.paper-card__meta { margin-top: 4px; font-size: 12px; color: var(--tan-500); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.paper-card__score { font-family: var(--mono); color: var(--teal-400); }
+.paper-card__actions { margin-top: 8px; display: flex; gap: 6px; }
+
+.detail__head {
+  flex: none; padding: 15px 18px; border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--ink-800), var(--ink-850));
+}
+.detail__title { font-size: 19px; font-weight: 650; line-height: 1.3; }
+.detail__meta { margin-top: 6px; font-size: 12.5px; color: var(--tan-500); display: flex; gap: 10px; flex-wrap: wrap; }
+.detail__abstract { font-size: 13px; color: var(--tan-100); line-height: 1.6; }
+
+.notes-list { display: flex; flex-direction: column; gap: 8px; }
+.note { padding: 9px 11px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--ink-750); font-size: 12.5px; }
+.note__meta { color: var(--tan-700); font-size: 11px; margin-top: 4px; }
+
+/* ------------------------------------------------------- dependency graph ---- */
+/* Reading order flows left -> right (rank 0 = read first). y is spread to
+   avoid overlap within a rank; nodes in a citation cycle get a gold ring
+   instead of the normal teal/tan fill, since a cycle can't be ordered by
+   the edges themselves and is a real property of the data worth flagging,
+   not hiding. */
+.graph { position: relative; width: 100%; min-height: 320px; }
+.graph svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.graph__edge { stroke: var(--tan-700); stroke-width: 1.5; fill: none; marker-end: url(#rc-arrow); }
+.graph__edge--cycle { stroke: var(--gold-500); stroke-dasharray: 4 3; }
+.graph__node circle { fill: var(--teal-600); stroke: var(--ink-800); stroke-width: 2; }
+.graph__node.is-cycle circle { fill: var(--ink-750); stroke: var(--gold-500); stroke-width: 2.5; }
+.graph__node text { fill: var(--cream); font-size: 10.5px; font-family: var(--sans); }
+.graph__node .rank { fill: var(--tan-700); font-family: var(--mono); font-size: 9px; }
+.graph__node { cursor: pointer; }
+.graph__node:hover circle { stroke: var(--teal-400); }
+.graph__legend { display: flex; gap: 16px; margin-top: 8px; font-size: 11.5px; color: var(--tan-500); flex-wrap: wrap; }
+.graph__legend b { color: var(--tan-100); }
+
+.reading-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.reading-list__item { display: flex; align-items: baseline; gap: 8px; padding: 6px 8px; border-radius: var(--radius-sm); font-size: 12.5px; }
+.reading-list__item:hover { background: var(--ink-750); }
+.reading-list__rank { font-family: var(--mono); color: var(--tan-700); flex: none; width: 22px; }
+
+/* ------------------------------------------------------------ agent chat ---- */
+.chat { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.chat__log { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.chat__msg { max-width: 88%; padding: 9px 12px; border-radius: var(--radius); font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+.chat__msg--user { align-self: flex-end; background: var(--teal-700); color: var(--cream); }
+.chat__msg--agent { align-self: flex-start; background: var(--ink-750); border: 1px solid var(--line); }
+.chat__msg--error { align-self: flex-start; background: color-mix(in srgb, var(--orange-600) 18%, var(--ink-750)); color: var(--orange-400); }
+.chat__form { flex: none; display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
+.chat__form input { flex: 1 1 auto; }

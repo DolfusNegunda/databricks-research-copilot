@@ -1,0 +1,33 @@
+command:
+  - "python"
+  - "app.py"
+
+env:
+  # --- Lakebase --------------------------------------------------------
+  - name: LAKEBASE_SECRET_SCOPE
+    value: "database"
+  - name: LAKEBASE_SECRET_KEY
+    value: "lakebase-url"
+  - name: LAKEBASE_SCHEMA
+    value: "research"
+  # - name: LAKEBASE_URL
+  #   valueFrom: lakebase-url
+
+  # --- Embeddings --------------------------------------------------------
+  - name: EMBEDDING_MODEL_NAME
+    value: "sentence-transformers/all-MiniLM-L6-v2"
+  - name: EMBEDDING_DIM
+    value: "384"
+  - name: SENTENCE_TRANSFORMERS_HOME
+    value: "/tmp/.cache/sentence-transformers"
+
+  # --- Agent Bricks --------------------------------------------------------
+  # Set once the Agent Bricks agent exists and the MCP server (mcp_server/)
+  # is registered with it as a tool source. See README.md's setup section.
+  # - name: AGENT_SERVING_ENDPOINT
+  #   value: "your-agent-bricks-endpoint-name"
+
+  # Local development only -- see app.py's _current_user_email(). Do not set
+  # this in the deployed app.
+  # - name: FLASK_DEV_USER_EMAIL
+  #   value: "you@example.com"

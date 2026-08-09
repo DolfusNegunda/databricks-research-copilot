@@ -38,7 +38,11 @@ if not sql_files:
 
 for sql_file in sql_files:
     raw = sql_file.read_text(encoding="utf-8")
-    sql = raw.replace("__SCHEMA_NAME__", SCHEMA).replace("__SCHEMA__", f'"{SCHEMA}"')
+    sql = (
+        raw.replace("__SCHEMA_NAME__", SCHEMA)
+        .replace("__SCHEMA__", f'"{SCHEMA}"')
+        .replace("{{EMBEDDING_DIM}}", "384")
+    )
 
     try:
         statements = parse_sql(sql)

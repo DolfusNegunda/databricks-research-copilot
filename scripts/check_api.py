@@ -14,12 +14,14 @@ check that caught it.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from abstract_reconstruction import reconstruct_abstract  # noqa: E402
+from embedder import chunk_text, embed_texts, to_vector_literal  # noqa: E402
 from harvester.snowball import batched, build_or_filter, short_id  # noqa: E402
 from reading_path import Paper, build_reading_path  # noqa: E402
 
@@ -224,6 +226,64 @@ try:
     check("build_or_filter: empty id list raises ValueError", False, "no exception was raised")
 except ValueError:
     check("build_or_filter: empty id list raises ValueError", True)
+
+# ---------------------------------------------------------------------------
+# embedder pure helpers (no model load, no network)
+# ---------------------------------------------------------------------------
+
+check("chunk_text: empty string yields no chunks", chunk_text("") == [])
+check("chunk_text: whitespace-only yields no chunks", chunk_text("   ") == [])
+check(
+    "chunk_text: text shorter than chunk_size yields exactly one chunk",
+    chunk_text("a short abstract", chunk_size=800, chunk_overlap=100) == ["a short abstract"],
+)
+long_text = "word " * 500  # 2500 chars, well over an 800-char chunk_size
+long_chunks = chunk_text(long_text, chunk_size=800, chunk_overlap=100)
+check("chunk_text: long text splits into multiple chunks", len(long_chunks) > 1, str(len(long_chunks)))
+check(
+    "chunk_text: every chunk is non-empty after stripping",
+    all(c == c.strip() and c for c in long_chunks),
+)
+try:
+    chunk_text("x", chunk_size=0)
+    check("chunk_text: chunk_size<=0 raises ValueError", False, "no exception was raised")
+except ValueError:
+    check("chunk_text: chunk_size<=0 raises ValueError", True)
+try:
+    chunk_text("x", chunk_size=100, chunk_overlap=100)
+    check("chunk_text: overlap>=chunk_size raises ValueError", False, "no exception was raised")
+except ValueError:
+    check("chunk_text: overlap>=chunk_size raises ValueError", True)
+
+check("embed_texts: empty list returns empty list without loading a model", embed_texts([]) == [])
+
+check(
+    "to_vector_literal: formats as a bracketed, comma-separated pgvector literal",
+    to_vector_literal([1.0, -0.5, 0.0]) == "[1.00000000,-0.50000000,0.00000000]",
+)
+check("to_vector_literal: empty vector formats as an empty literal", to_vector_literal([]) == "[]")
+
+# ---------------------------------------------------------------------------
+# frontend conventions (source text inspection, no JS execution)
+# ---------------------------------------------------------------------------
+
+_APP_DIR = Path(__file__).resolve().parent.parent / "app"
+_APP_JS = (_APP_DIR / "static" / "js" / "app.js").read_text(encoding="utf-8")
+_APP_HTML = (_APP_DIR / "templates" / "index.html").read_text(encoding="utf-8")
+
+check(
+    "app.js: never uses innerHTML (DOM built with createElement/textContent only)",
+    "innerHTML" not in _APP_JS,
+)
+
+_html_ids = set(re.findall(r'id="([^"]+)"', _APP_HTML))
+_js_ids = set(re.findall(r'getElementById\(["\']([^"\']+)["\']\)', _APP_JS))
+_missing_ids = _js_ids - _html_ids
+check(
+    "app.js: every getElementById has a matching element in index.html",
+    not _missing_ids,
+    f"referenced but not found in the template: {_missing_ids}",
+)
 
 print(f"\n{passed} passed, {len(failed)} failed")
 if failed:

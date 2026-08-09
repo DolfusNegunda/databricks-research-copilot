@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Research Copilot</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <a class="brand" href="/">
+        <img class="brand__mark" src="{{ url_for('static', filename='img/logo-mark.svg') }}" alt="" width="30" height="30">
+        <span class="brand__text">
+          <span class="brand__name">Research Copilot</span>
+          <span class="brand__sub">Citation-ordered reading paths over OpenAlex.</span>
+        </span>
+      </a>
+      <nav class="tabs" id="main-tabs">
+        <button class="tab is-active" data-tab="paper">Paper</button>
+        <button class="tab" data-tab="path">Reading Path</button>
+        <button class="tab" data-tab="agent">Agent</button>
+      </nav>
+      <div class="topbar__spacer"></div>
+      <span class="chip chip--user" id="user-chip"><span class="chip__label">&hellip;</span></span>
+    </header>
+
+    <div id="banner-slot"></div>
+
+    <main class="layout">
+      <div class="stack">
+        <section class="pane pane--fixed" id="search-pane">
+          <div class="pane__head"><span class="pane__title">Search</span></div>
+          <div class="pane__scroll">
+            <form class="form" id="search-form" style="padding: 12px 14px;">
+              <div class="field">
+                <input type="text" id="search-query" class="search__input" placeholder="Retrieval-augmented generation for long documents&hellip;">
+              </div>
+              <div class="filters" id="topic-filters"></div>
+              <button type="submit" class="btn btn--primary btn--sm">Search</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="pane" id="results-pane">
+          <div class="pane__head">
+            <span class="pane__title">Results</span>
+            <span class="pane__count" id="results-count"></span>
+          </div>
+          <div class="pane__scroll">
+            <div class="empty" id="results-empty">
+              <div class="empty__title">Search to begin</div>
+              <p class="empty__text">Papers you search for can be added to a collection, then sequenced into a reading path.</p>
+            </div>
+            <div class="rows" id="results-list"></div>
+          </div>
+        </section>
+
+        <section class="pane pane--fixed" id="collections-pane">
+          <div class="pane__head">
+            <span class="pane__title">Collections</span>
+            <button class="btn btn--quiet btn--sm" id="new-collection-btn">+ New</button>
+          </div>
+          <div class="pane__scroll">
+            <div class="empty" id="collections-empty">
+              <p class="empty__text">No collections yet.</p>
+            </div>
+            <div class="rows" id="collections-list"></div>
+          </div>
+        </section>
+      </div>
+
+      <section class="pane pane--detail" id="detail-pane">
+        <div class="pane__head">
+          <span class="pane__title" id="detail-title">Paper</span>
+        </div>
+
+        <div id="view-paper" class="detail__scroll">
+          <div class="empty" id="paper-empty">
+            <div class="empty__title">No paper selected</div>
+            <p class="empty__text">Search on the left and click a result to see its details, prerequisites, and citation links.</p>
+          </div>
+          <div id="paper-content" hidden></div>
+        </div>
+
+        <div id="view-path" class="detail__scroll" hidden>
+          <div class="empty" id="path-empty">
+            <div class="empty__title">No collection selected</div>
+            <p class="empty__text">Select a collection to compute and view its citation-ordered reading path.</p>
+          </div>
+          <div id="path-content" hidden></div>
+        </div>
+
+        <div id="view-agent" class="chat" hidden>
+          <div class="chat__log" id="chat-log">
+            <div class="chat__msg chat__msg--agent">Ask me to find papers, build a reading path, or track your progress. I call the same MCP tools an Agent Bricks agent would.</div>
+          </div>
+          <form class="chat__form" id="chat-form">
+            <input type="text" id="chat-input" placeholder="Ask about a topic, or say 'build me a reading path on...'">
+            <button type="submit" class="btn btn--primary">Send</button>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+
+  <template id="tmpl-paper-card">
+    <div class="paper-card">
+      <div class="paper-card__title"></div>
+      <div class="paper-card__meta">
+        <span class="paper-card__year"></span>
+        <span class="paper-card__field"></span>
+        <span class="paper-card__score"></span>
+      </div>
+      <div class="paper-card__actions">
+        <button class="btn btn--ghost btn--sm" data-action="view">View</button>
+        <button class="btn btn--ghost btn--sm" data-action="add">Add to collection</button>
+      </div>
+    </div>
+  </template>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
