@@ -1,0 +1,47 @@
+# Syncs gold/silver Delta tables into Lakebase, then embeds anything new.
+# Two sequential tasks rather than one script, mirroring the deliberate
+# sync/embed separation in pipelines/embed_papers.py: sync is a cheap batch
+# SQL write, embedding loads a real model and runs inference. Each task
+# declares only the libraries it actually needs -- sync never pulls in
+# sentence-transformers/torch.
+#
+# Run manually after openalex_snowball_harvest + the declarative pipeline
+# have produced fresh gold tables; not scheduled, for the same reason the
+# harvest job isn't (see resources/openalex_harvest_job.yml).
+
+resources:
+  jobs:
+    openalex_sync_to_lakebase:
+      name: openalex-sync-to-lakebase
+      tasks:
+        - task_key: sync
+          spark_python_task:
+            python_file: ../pipelines/sync_to_lakebase.py
+          libraries:
+            - pypi:
+                package: psycopg2-binary
+            - pypi:
+                package: SQLAlchemy
+            - pypi:
+                package: databricks-sdk
+          new_cluster:
+            spark_version: 15.4.x-scala2.12
+            node_type_id: Standard_DS3_v2
+            num_workers: 0
+
+        - task_key: embed
+          depends_on:
+            - task_key: sync
+          spark_python_task:
+            python_file: ../pipelines/embed_papers.py
+          libraries:
+            - pypi:
+                package: psycopg2-binary
+            - pypi:
+                package: databricks-sdk
+            - pypi:
+                package: sentence-transformers
+          new_cluster:
+            spark_version: 15.4.x-scala2.12
+            node_type_id: Standard_DS3_v2
+            num_workers: 0

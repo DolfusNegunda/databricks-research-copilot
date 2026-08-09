@@ -156,7 +156,7 @@ CREATE TABLE IF NOT EXISTS __SCHEMA__.paper_embeddings (
     work_id      TEXT NOT NULL REFERENCES __SCHEMA__.papers (work_id) ON DELETE CASCADE,
     chunk_index  INTEGER NOT NULL,
     chunk_text   TEXT NOT NULL,
-    embedding    VECTOR(384) NOT NULL,
+    embedding    VECTOR({{EMBEDDING_DIM}}) NOT NULL,
     model_name   TEXT NOT NULL,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
 

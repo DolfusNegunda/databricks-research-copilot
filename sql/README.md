@@ -14,8 +14,11 @@ Creates the `research` schema and every table: `users`, `learning_goals`,
 HNSW) and `citation_edges` (the reading-path graph, materialized from the
 gold Delta layer so the UI never waits on a Spark round trip).
 
-`VECTOR(384)` matches `sentence-transformers/all-MiniLM-L6-v2`. Change both
-together if the embedding model changes -- see `env.example`.
+**IMPORTANT:** replace `{{EMBEDDING_DIM}}` with your model's dimension --
+`lakebase.ensure_research_schema()` does this automatically from `EMBEDDING_DIM`
+(default 384, matching `sentence-transformers/all-MiniLM-L6-v2`). If you change
+`EMBEDDING_MODEL_NAME` in `env.example`, update `EMBEDDING_DIM` to match, or
+every embedding insert fails with a dimension mismatch.
 
 Validated offline by `scripts/check_sql.py` (pglast / libpg_query). That
 catches grammar errors, not semantics -- `scripts/check_connection.py --write`
